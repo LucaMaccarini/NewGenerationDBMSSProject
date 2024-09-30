@@ -1,0 +1,30 @@
+match(n)
+detach delete n
+
+// Creazione del nodo Customer
+CREATE (c:Customer {
+    ID: 0,
+    coord_x: 54.88135039273247,
+    coord_y: 71.51893663724195,
+    spending_mean: 62.262520726806166,
+    spending_std: 31.131260363403083,
+    transactions_per_day_mean: 2.1795327319875875
+})
+
+// Creazione del nodo Terminal
+CREATE (t:Terminal {
+    ID: 0,
+    coord_x: 41.7022004702574,
+    coord_y: 72.0324493442158
+})
+
+// Creazione della relazione TRANSACTION (direzionale)
+CREATE (c)-[:TRANSACTION {
+    ID: 0,
+    duration_days: 0,
+    duration_seconds: 31,
+    dateAndTime: '2018-04-01 00:00:31',
+    amount: 57.16,
+    isFraud: false,
+    fraudScenario: 0
+}]->(t)
