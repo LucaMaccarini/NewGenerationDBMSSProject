@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'Transaction_data_simulator_code'))
 
@@ -24,8 +25,16 @@ for db in config.DBs:
     # Aggiungere frodi alle transazioni
     transactions_df = add_frauds(customer_profiles_table, terminal_profiles_table, transactions_df)
 
+    
+    # Converto i valori della serie available_terminals da array numpy in liste Python per una migliore rappresentazione nel csv
+    customer_profiles_table['available_terminals'] = customer_profiles_table['available_terminals'].apply(
+        lambda lst: [int(i) if isinstance(i, np.integer) else i for i in lst] if isinstance(lst, list) else lst
+    )
+
+    
     # Preparazione al salvataggio del DB
-    output_dir = config.outputDir + "/" + db["DB_name"]
+    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'Generated_DBs', db["DB_name"])
+
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -38,8 +47,6 @@ for db in config.DBs:
 
     # Salvataggio delle transactions
     transactions_df.to_csv(output_dir + '/transactions.csv', sep=';', encoding='utf-8', index=False)
-
-    print(customer_profiles_table.head())
 
     print(f"Database data saved in: {os.path.abspath(output_dir)}/\n")
 

@@ -1,5 +1,3 @@
-outputDir = '../Generated_DBs'
-
 DBs = [
     #{
     #    "DB_name": "Test-50Mb",
