@@ -1,4 +1,3 @@
 # cartella contenente il db generato, ovvero i 3 csv creati dallo script di generazione
-import_DB_absolute_path = "/home/macca/Scrivania/Collegamento a unimi/new generation/progetto/NewGenerationDBMSSProject/Generated_DBs/Test1"
-customers_csv = 'customers.csv'
+customers_csv_link =  "https://drive.google.com/uc?id=1aOAeJb7LY41sqekzPdL3bJx1omQeKc0H"
 lines_per_commit = 1000
