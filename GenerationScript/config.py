@@ -8,10 +8,10 @@ DBs = [
     #    "radius": 5
     #},
     {
-        "DB_name": "Test1",
-        "n_customers": 10,
-        "n_terminals": 10,
-        "n_days": 10,
+        "DB_name": "Test",
+        "n_customers": 200,
+        "n_terminals": 50,
+        "n_days": 80,
         "start_date": '2024-12-30',
         "radius": 5
     }

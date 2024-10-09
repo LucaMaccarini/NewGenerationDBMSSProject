@@ -30,7 +30,6 @@ def clear_database():
     finally:
         close_neo4j_connection(driver)
 
-# load terminals
 def load_terminals_from_csv():
     driver = get_neo4j_connection()
 
@@ -57,8 +56,35 @@ def load_terminals_from_csv():
     finally:
         close_neo4j_connection(driver)
 
+def load_terminals_from_csv2():
+    driver = get_neo4j_connection()
 
-# load customers and available relations to terminals
+    query = f"""
+        CALL apoc.periodic.iterate(
+            'LOAD CSV WITH HEADERS FROM "{config.terminals_csv_link}" AS row FIELDTERMINATOR ";" 
+            RETURN row',
+            'CREATE (t:Terminal {{terminal_id: toInteger(row.TERMINAL_ID)}})
+            SET 
+                t.x_terminal_id = toFloat(row.x_terminal_id),
+                t.y_terminal_id = toFloat(row.y_terminal_id)
+            ',
+            {{batchSize: {config.lines_per_commit}, parallel: true}}
+        )
+    """
+
+    try:
+        with driver.session() as session:
+             session.run(query)
+        return True
+    except Exception as e:
+        print(f"ERROR load_terminals_from_csv: {e}")
+        return False
+    finally:
+        close_neo4j_connection(driver)
+
+
+        
+
 # Preconditions: terminals must exist
 def load_customers_with_available_terminals_from_csv():
     driver = get_neo4j_connection()
@@ -95,8 +121,6 @@ def load_customers_with_available_terminals_from_csv():
     finally:
         close_neo4j_connection(driver)
 
-
-# Load transactions
 def load_transactions_from_csv():
     driver = get_neo4j_connection()
 
@@ -111,7 +135,7 @@ def load_transactions_from_csv():
                 transaction.tx_time_seconds = toInteger(row.TX_TIME_SECONDS), 
                 transaction.tx_time_days = toInteger(row.TX_TIME_DAYS),
                 transaction.tx_amount = toFloat(row.TX_AMOUNT), 
-                transaction.tx_datetime = row.TX_DATETIME, 
+                transaction.tx_datetime = datetime(replace(row.TX_DATETIME, " ", "T")),
                 transaction.tx_fraud = toInteger(row.TX_FRAUD), 
                 transaction.tx_fraud_scenario = toInteger(row.TX_FRAUD_SCENARIO)
             ',
@@ -125,6 +149,52 @@ def load_transactions_from_csv():
         return True
     except Exception as e:
         print(f"ERROR load_transactions_from_csv: {e}")
+        return False
+    finally:
+        close_neo4j_connection(driver)
+
+#SHOW CONSTRAINTS YIELD id, name, type, entityType, labelsOrTypes, properties
+#DROP CONSTRAINT terminal_id_unique
+def create_terminal_costraints():
+    driver = get_neo4j_connection()
+
+    query = """
+    CREATE CONSTRAINT Terminal_terminal_id IF NOT EXISTS FOR (t:Terminal) REQUIRE t.terminal_id IS UNIQUE
+    """
+
+    try:
+        with driver.session() as session:
+            session.run(query)
+        return True
+    except Exception as e:
+        print(f"ERROR create_terminal_schema: {e}")
+        return False
+    finally:
+        close_neo4j_connection(driver)
+
+
+def create_terminal_apoc_schema():
+    driver = get_neo4j_connection()
+
+    query = """
+    CALL apoc.schema.assert(
+      {
+        Terminal: ["terminal_id"]
+        
+      },
+      {
+        Terminal: ["terminal_id"]
+      },
+      true
+    );
+    """
+
+    try:
+        with driver.session() as session:
+            session.run(query)
+        return True
+    except Exception as e:
+        print(f"ERROR create_terminal_schema: {e}")
         return False
     finally:
         close_neo4j_connection(driver)

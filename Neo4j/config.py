@@ -6,7 +6,7 @@
 
 
 
-customers_csv_link =  "https://drive.google.com/uc?id=1QOpQmrBoXQoRPQscjnHrMGzz4q3HqdbA"
-terminals_csv_link =  "https://drive.google.com/uc?id=1eDiwj_ykXaTylAbWVV1Vbg8RzFHRgBDh"
-transactions_csv_link =  "https://drive.google.com/uc?id=1Urc8ZHSJfecrDVXHAFMK1buJUOWA5EtM"
+customers_csv_link =  "https://www.dropbox.com/scl/fi/etkusr9d6rr7lrc32zxre/customers.csv?rlkey=l3pzkk66au5xuyshhhk392497&st=ue72fvro&dl=1"
+terminals_csv_link =  "https://www.dropbox.com/scl/fi/j9rbktdvvujcc3jmnovc8/terminals.csv?rlkey=jesdwacp0tmgwqzsuyycwgvb5&st=gxa7tbro&dl=1"
+transactions_csv_link =  "https://www.dropbox.com/scl/fi/nr8jg8ofwh22geyx6vsrv/transactions.csv?rlkey=ftc258g3frk4unri1icqmhdrg&st=iskbq8ci&dl=1"
 lines_per_commit = 1000
