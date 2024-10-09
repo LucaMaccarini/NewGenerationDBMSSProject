@@ -26,12 +26,11 @@ for db in config.DBs:
     transactions_df = add_frauds(customer_profiles_table, terminal_profiles_table, transactions_df)
 
     
-    # Converto i valori della serie available_terminals da array numpy in liste Python per una migliore rappresentazione nel csv
+    # Converto i valori della serie available_terminals dato che gli interi nella lista sono interi numpy
     customer_profiles_table['available_terminals'] = customer_profiles_table['available_terminals'].apply(
-        lambda lst: [int(i) if isinstance(i, np.integer) else i for i in lst] if isinstance(lst, list) else lst
+        lambda lst: [int(i) if isinstance(i, np.integer) else i for i in lst] if isinstance(lst, (list, np.array)) else lst
     )
 
-    
     # Preparazione al salvataggio del DB
     output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'Generated_DBs', db["DB_name"])
 

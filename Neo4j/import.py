@@ -1,4 +1,9 @@
-from DB_functions import load_customers_from_csv, load_customers_from_simple_csv
+from DB_functions import load_customers_with_available_terminals_from_csv, load_terminals_from_csv, clear_database, load_transactions_from_csv
 
+clear_database()
 
-load_customers_from_csv()
+load_terminals_from_csv()
+
+load_customers_with_available_terminals_from_csv()
+
+load_transactions_from_csv()
