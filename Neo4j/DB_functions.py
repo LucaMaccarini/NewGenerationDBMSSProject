@@ -12,24 +12,47 @@ def get_neo4j_connection():
 def close_neo4j_connection(driver):
     driver.close()
 
+def get_neo4j_connection():
+    uri = os.getenv('NEO4J_URI')
+    user = os.getenv('NEO4J_USERNAME')
+    password = os.getenv('NEO4J_PASSWORD')
+    return GraphDatabase.driver(uri, auth=(user, password))
+
+def close_neo4j_connection(driver):
+    driver.close()
+
 def clear_database():
     driver = get_neo4j_connection()
     
-    query = """
+    delete_nodes_query = """
         MATCH (n)
         DETACH DELETE n
     """
     
     try:
         with driver.session() as session:
-            session.run(query)
+
+            session.run(delete_nodes_query)
+            
+            constraints_result = session.run("SHOW CONSTRAINTS")
+            for record in constraints_result:
+                drop_constraint_query = f"DROP CONSTRAINT {record['name']}"
+                session.run(drop_constraint_query)
+            
+            indexes_result = session.run("SHOW INDEXES")
+            for record in indexes_result:
+                drop_index_query = f"DROP INDEX {record['name']}"
+                session.run(drop_index_query)
+        
         return True
+
     except Exception as e:
         print(f"ERROR clear_database: {e}")
         return False
+    
     finally:
         close_neo4j_connection(driver)
-
+       
 def load_terminals_from_csv():
     driver = get_neo4j_connection()
 
@@ -56,35 +79,6 @@ def load_terminals_from_csv():
     finally:
         close_neo4j_connection(driver)
 
-def load_terminals_from_csv2():
-    driver = get_neo4j_connection()
-
-    query = f"""
-        CALL apoc.periodic.iterate(
-            'LOAD CSV WITH HEADERS FROM "{config.terminals_csv_link}" AS row FIELDTERMINATOR ";" 
-            RETURN row',
-            'CREATE (t:Terminal {{terminal_id: toInteger(row.TERMINAL_ID)}})
-            SET 
-                t.x_terminal_id = toFloat(row.x_terminal_id),
-                t.y_terminal_id = toFloat(row.y_terminal_id)
-            ',
-            {{batchSize: {config.lines_per_commit}, parallel: true}}
-        )
-    """
-
-    try:
-        with driver.session() as session:
-             session.run(query)
-        return True
-    except Exception as e:
-        print(f"ERROR load_terminals_from_csv: {e}")
-        return False
-    finally:
-        close_neo4j_connection(driver)
-
-
-        
-
 # Preconditions: terminals must exist
 def load_customers_with_available_terminals_from_csv():
     driver = get_neo4j_connection()
@@ -99,8 +93,7 @@ def load_customers_with_available_terminals_from_csv():
                 c.y_customer_id = toFloat(row.y_customer_id),
                 c.mean_amount = toFloat(row.mean_amount),
                 c.std_amount = toFloat(row.std_amount),
-                c.mean_nb_tx_per_day = toFloat(row.mean_nb_tx_per_day),
-                c.nb_terminals = toInteger(row.nb_terminals)
+                c.mean_nb_tx_per_day = toFloat(row.mean_nb_tx_per_day)
             WITH c, row
             WITH c, apoc.convert.fromJsonList(row.available_terminals) AS available_terminal_ids
             UNWIND available_terminal_ids AS available_terminal_id
@@ -153,8 +146,6 @@ def load_transactions_from_csv():
     finally:
         close_neo4j_connection(driver)
 
-#SHOW CONSTRAINTS YIELD id, name, type, entityType, labelsOrTypes, properties
-#DROP CONSTRAINT terminal_id_unique
 def create_terminal_costraints():
     driver = get_neo4j_connection()
 
@@ -172,29 +163,82 @@ def create_terminal_costraints():
     finally:
         close_neo4j_connection(driver)
 
-
-def create_terminal_apoc_schema():
+def create_terminals_schema():
     driver = get_neo4j_connection()
-
-    query = """
-    CALL apoc.schema.assert(
-      {
-        Terminal: ["terminal_id"]
-        
-      },
-      {
-        Terminal: ["terminal_id"]
-      },
-      true
-    );
-    """
-
+    
+    # Queries to create constraints and index using modern syntax
+    queries = [
+        """
+        CREATE CONSTRAINT terminal_id_unique
+        FOR (t:Terminal)
+        REQUIRE t.terminal_id IS UNIQUE;
+        """,
+        """
+        CREATE CONSTRAINT terminal_x_required
+        FOR (t:Terminal)
+        REQUIRE t.x_terminal_id IS NOT NULL;
+        """,
+        """
+        CREATE CONSTRAINT terminal_y_required
+        FOR (t:Terminal)
+        REQUIRE t.y_terminal_id IS NOT NULL;
+        """
+    ]
+    
     try:
         with driver.session() as session:
-            session.run(query)
+            for query in queries:
+                session.run(query)
         return True
     except Exception as e:
-        print(f"ERROR create_terminal_schema: {e}")
+        print(f"ERROR create_constraints_and_index: {e}")
+        return False
+    finally:
+        close_neo4j_connection(driver)
+
+def create_customers_schema():
+    driver = get_neo4j_connection()
+    
+    queries = [
+        """
+        CREATE CONSTRAINT customer_id_unique
+        FOR (c:Customer)
+        REQUIRE c.customer_id IS UNIQUE;
+        """,
+        """
+        CREATE CONSTRAINT customer_x_required
+        FOR (c:Customer)
+        REQUIRE c.x_customer_id IS NOT NULL;
+        """,
+        """
+        CREATE CONSTRAINT customer_y_required
+        FOR (c:Customer)
+        REQUIRE c.y_customer_id IS NOT NULL;
+        """,
+        """
+        CREATE CONSTRAINT customer_mean_amount_required
+        FOR (c:Customer)
+        REQUIRE c.mean_amount IS NOT NULL;
+        """,
+        """
+        CREATE CONSTRAINT customer_std_amount_required
+        FOR (c:Customer)
+        REQUIRE c.std_amount IS NOT NULL;
+        """,
+        """
+        CREATE CONSTRAINT customer_mean_nb_tx_per_day_required
+        FOR (c:Customer)
+        REQUIRE c.mean_nb_tx_per_day IS NOT NULL;
+        """
+    ]
+    
+    try:
+        with driver.session() as session:
+            for query in queries:
+                session.run(query)
+        return True
+    except Exception as e:
+        print(f"ERROR create_customers_schema: {e}")
         return False
     finally:
         close_neo4j_connection(driver)
