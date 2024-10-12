@@ -129,7 +129,7 @@ def load_transactions_from_csv():
                 transaction.tx_time_days = toInteger(row.TX_TIME_DAYS),
                 transaction.tx_amount = toFloat(row.TX_AMOUNT), 
                 transaction.tx_datetime = datetime(replace(row.TX_DATETIME, " ", "T")),
-                transaction.tx_fraud = toInteger(row.TX_FRAUD), 
+                transaction.tx_fraud = toBoolean(toInteger(row.TX_FRAUD)), 
                 transaction.tx_fraud_scenario = toInteger(row.TX_FRAUD_SCENARIO)
             ',
             {{batchSize: {config.lines_per_commit}, parallel: true}}
@@ -146,32 +146,25 @@ def load_transactions_from_csv():
     finally:
         close_neo4j_connection(driver)
 
-def create_terminal_costraints():
-    driver = get_neo4j_connection()
-
-    query = """
-    CREATE CONSTRAINT Terminal_terminal_id IF NOT EXISTS FOR (t:Terminal) REQUIRE t.terminal_id IS UNIQUE
-    """
-
-    try:
-        with driver.session() as session:
-            session.run(query)
-        return True
-    except Exception as e:
-        print(f"ERROR create_terminal_schema: {e}")
-        return False
-    finally:
-        close_neo4j_connection(driver)
-
 def create_terminals_schema():
     driver = get_neo4j_connection()
     
     # Queries to create constraints and index using modern syntax
     queries = [
         """
-        CREATE CONSTRAINT terminal_id_unique
+        CREATE CONSTRAINT terminal_id_is_integer
         FOR (t:Terminal)
-        REQUIRE t.terminal_id IS UNIQUE;
+        REQUIRE t.terminal_id IS :: INTEGER;
+        """,
+        """
+        CREATE CONSTRAINT terminal_id_key
+        FOR (t:Terminal)
+        REQUIRE t.terminal_id IS NODE KEY;
+        """,
+        """
+        CREATE CONSTRAINT terminal_x_is_float
+        FOR (t:Terminal)
+        REQUIRE t.x_terminal_id IS :: FLOAT;
         """,
         """
         CREATE CONSTRAINT terminal_x_required
@@ -179,12 +172,18 @@ def create_terminals_schema():
         REQUIRE t.x_terminal_id IS NOT NULL;
         """,
         """
+        CREATE CONSTRAINT terminal_y_is_float
+        FOR (t:Terminal)
+        REQUIRE t.y_terminal_id IS :: FLOAT;
+        """,
+        """
         CREATE CONSTRAINT terminal_y_required
         FOR (t:Terminal)
         REQUIRE t.y_terminal_id IS NOT NULL;
         """
     ]
-    
+
+
     try:
         with driver.session() as session:
             for query in queries:
@@ -201,9 +200,19 @@ def create_customers_schema():
     
     queries = [
         """
-        CREATE CONSTRAINT customer_id_unique
+        CREATE CONSTRAINT customer_id_is_integer
         FOR (c:Customer)
-        REQUIRE c.customer_id IS UNIQUE;
+        REQUIRE c.customer_id IS :: INTEGER;
+        """,
+        """
+        CREATE CONSTRAINT customer_id_key
+        FOR (c:Customer)
+        REQUIRE c.customer_id IS NODE KEY;
+        """,
+        """
+        CREATE CONSTRAINT customer_x_is_float
+        FOR (c:Customer)
+        REQUIRE c.x_customer_id IS :: FLOAT;
         """,
         """
         CREATE CONSTRAINT customer_x_required
@@ -211,9 +220,19 @@ def create_customers_schema():
         REQUIRE c.x_customer_id IS NOT NULL;
         """,
         """
+        CREATE CONSTRAINT customer_y_is_float
+        FOR (c:Customer)
+        REQUIRE c.y_customer_id IS :: FLOAT;
+        """,
+        """
         CREATE CONSTRAINT customer_y_required
         FOR (c:Customer)
         REQUIRE c.y_customer_id IS NOT NULL;
+        """,
+        """
+        CREATE CONSTRAINT customer_mean_amount_is_float
+        FOR (c:Customer)
+        REQUIRE c.mean_amount IS :: FLOAT;
         """,
         """
         CREATE CONSTRAINT customer_mean_amount_required
@@ -221,9 +240,19 @@ def create_customers_schema():
         REQUIRE c.mean_amount IS NOT NULL;
         """,
         """
+        CREATE CONSTRAINT customer_std_amount_is_float
+        FOR (c:Customer)
+        REQUIRE c.std_amount IS :: FLOAT;
+        """,
+        """
         CREATE CONSTRAINT customer_std_amount_required
         FOR (c:Customer)
         REQUIRE c.std_amount IS NOT NULL;
+        """,
+        """
+        CREATE CONSTRAINT customer_mean_nb_tx_per_day_is_float
+        FOR (c:Customer)
+        REQUIRE c.mean_nb_tx_per_day IS :: FLOAT;
         """,
         """
         CREATE CONSTRAINT customer_mean_nb_tx_per_day_required
@@ -231,7 +260,7 @@ def create_customers_schema():
         REQUIRE c.mean_nb_tx_per_day IS NOT NULL;
         """
     ]
-    
+
     try:
         with driver.session() as session:
             for query in queries:
@@ -242,3 +271,92 @@ def create_customers_schema():
         return False
     finally:
         close_neo4j_connection(driver)
+
+def create_transaction_schema():
+    driver = get_neo4j_connection()
+
+    queries = [
+        """
+        CREATE CONSTRAINT transaction_id_key
+        FOR ()-[transaction:Make_transaction]->() 
+        REQUIRE transaction.transaction_id IS RELATIONSHIP KEY;
+        """,
+        """
+        CREATE CONSTRAINT transaction_id_is_integer
+        FOR ()-[transaction:Make_transaction]->() 
+        REQUIRE transaction.transaction_id IS :: INTEGER;
+        """,
+        """
+        CREATE CONSTRAINT tx_time_seconds_is_integer
+        FOR ()-[transaction:Make_transaction]->() 
+        REQUIRE transaction.tx_time_seconds IS :: INTEGER;
+        """,
+        """
+        CREATE CONSTRAINT tx_time_seconds_required
+        FOR ()-[transaction:Make_transaction]->() 
+        REQUIRE transaction.tx_time_seconds IS NOT NULL;
+        """,
+        """
+        CREATE CONSTRAINT tx_time_days_is_integer
+        FOR ()-[transaction:Make_transaction]->() 
+        REQUIRE transaction.tx_time_days IS :: INTEGER;
+        """,
+        """
+        CREATE CONSTRAINT tx_time_days_required
+        FOR ()-[transaction:Make_transaction]->() 
+        REQUIRE transaction.tx_time_days IS NOT NULL;
+        """,
+        """
+        CREATE CONSTRAINT tx_fraud_is_boolean
+        FOR ()-[transaction:Make_transaction]->() 
+        REQUIRE transaction.tx_fraud IS :: BOOLEAN;
+        """,
+        """
+        CREATE CONSTRAINT tx_fraud_required
+        FOR ()-[transaction:Make_transaction]->() 
+        REQUIRE transaction.tx_fraud IS NOT NULL;
+        """,
+        """
+        CREATE CONSTRAINT tx_fraud_scenario_is_integer
+        FOR ()-[transaction:Make_transaction]->() 
+        REQUIRE transaction.tx_fraud_scenario IS :: INTEGER;
+        """,
+        """
+        CREATE CONSTRAINT tx_fraud_scenario_required
+        FOR ()-[transaction:Make_transaction]->() 
+        REQUIRE transaction.tx_fraud_scenario IS NOT NULL;
+        """,
+        #"""
+        #CREATE CONSTRAINT tx_datetime_is_local_datetime
+        #FOR ()-[transaction:Make_transaction]->() 
+        #REQUIRE transaction.tx_datetime IS :: LOCAL DATETIME;
+        #""",
+        """
+        CREATE CONSTRAINT tx_datetime_required
+        FOR ()-[transaction:Make_transaction]->() 
+        REQUIRE transaction.tx_datetime IS NOT NULL;
+        """,
+        """
+        CREATE CONSTRAINT tx_amount_is_float
+        FOR ()-[transaction:Make_transaction]->() 
+        REQUIRE transaction.tx_amount IS :: FLOAT;
+        """,
+        """
+        CREATE CONSTRAINT tx_amount_required
+        FOR ()-[transaction:Make_transaction]->() 
+        REQUIRE transaction.tx_amount IS NOT NULL;
+        """
+    ]
+
+
+    try:
+        with driver.session() as session:
+            for query in queries:
+                session.run(query)
+        return True
+    except Exception as e:
+        print(f"ERROR create_transaction_schema: {e}")
+        return False
+    finally:
+        close_neo4j_connection(driver)
+
