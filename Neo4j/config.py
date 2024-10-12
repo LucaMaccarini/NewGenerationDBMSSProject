@@ -10,3 +10,4 @@ customers_csv_link =  "https://www.dropbox.com/scl/fi/etkusr9d6rr7lrc32zxre/cust
 terminals_csv_link =  "https://www.dropbox.com/scl/fi/j9rbktdvvujcc3jmnovc8/terminals.csv?rlkey=jesdwacp0tmgwqzsuyycwgvb5&st=gxa7tbro&dl=1"
 transactions_csv_link =  "https://www.dropbox.com/scl/fi/nr8jg8ofwh22geyx6vsrv/transactions.csv?rlkey=ftc258g3frk4unri1icqmhdrg&st=iskbq8ci&dl=1"
 lines_per_commit = 1000
+parallel_loading = "true"
