@@ -1,6 +1,7 @@
 import os
+import time 
 import config
-from neo4j import GraphDatabase
+import neo4j
 
 def get_neo4j_connection():
     try:
@@ -8,7 +9,7 @@ def get_neo4j_connection():
         user = os.getenv('NEO4J_USERNAME')
         password = os.getenv('NEO4J_PASSWORD')
 
-        return GraphDatabase.driver(uri, auth=(user, password))
+        return neo4j.GraphDatabase.driver(uri, auth=(user, password))
     
     except Exception as e:
         print(f"ERROR: An unexpected error occurred while connecting to Neo4j: {e}")
@@ -26,6 +27,7 @@ def clear_database():
     delete_nodes_query = "MATCH (n) DETACH DELETE n"
     
     try:
+        start_time=time.time()
         driver.execute_query(delete_nodes_query)
 
         constraints_result = driver.execute_query("SHOW CONSTRAINTS").records
@@ -37,7 +39,8 @@ def clear_database():
         for record in indexes_result:
             drop_index_query = "DROP INDEX $name"
             driver.execute_query(drop_index_query, {"name": record["name"]})
-        
+
+        print("clear_database execution time: {:.2f}s".format(time.time()-start_time))
         return True
 
     except Exception as e:
@@ -64,7 +67,9 @@ def load_terminals_from_csv():
     """
 
     try:
+        start_time=time.time()
         driver.execute_query(query)
+        print("load_terminals_from_csv execution time: {:.2f}s".format(time.time()-start_time))
         return True
     except Exception as e:
         print(f"ERROR load_terminals_from_csv: {e}")
@@ -97,7 +102,9 @@ def load_customers_with_available_terminals_from_csv():
     """
     
     try:
+        start_time=time.time()
         driver.execute_query(query)
+        print("load_customers_with_available_terminals_from_csv execution time: {:.2f}s".format(time.time()-start_time))
         return True
     except Exception as e:
         print(f"ERROR load_customers_with_available_terminals_from_csv: {e}")
@@ -128,7 +135,9 @@ def load_transactions_from_csv():
     """
 
     try:
+        start_time=time.time()
         driver.execute_query(query)
+        print("load_transactions_from_csv execution time: {:.2f}s".format(time.time()-start_time))
         return True
     except Exception as e:
         print(f"ERROR load_transactions_from_csv: {e}")
@@ -151,8 +160,10 @@ def create_terminals_schema():
     ]
 
     try:
+        start_time=time.time()
         for query in queries:
             driver.execute_query(query)
+        print("create_terminals_schema execution time: {:.2f}s".format(time.time()-start_time))
         return True
     except Exception as e:
         print(f"ERROR create_constraints_and_index: {e}")
@@ -181,8 +192,10 @@ def create_customers_schema():
     ]
 
     try:
+        start_time=time.time()
         for query in queries:
             driver.execute_query(query)
+        print("create_customers_schema execution time: {:.2f}s".format(time.time()-start_time))
         return True
     except Exception as e:
         print(f"ERROR create_customers_schema: {e}")
@@ -213,11 +226,84 @@ def create_transaction_schema():
     ]
 
     try:
+        start_time=time.time()
         for query in queries:
             driver.execute_query(query)
+        print("create_transaction_schema execution time: {:.2f}s".format(time.time()-start_time))
         return True
     except Exception as e:
         print(f"ERROR create_transaction_schema: {e}")
         return False
     finally:
         close_neo4j_connection(driver)
+
+#day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
+def query_a(day_under_analesis):
+    driver = get_neo4j_connection()
+    if driver is None:
+        return False
+
+    query = f"""
+            WITH date.truncate('month', date("{day_under_analesis}") ) - duration('P1M') AS first_of_previous_month
+
+            MATCH (c:Customer)
+
+            OPTIONAL MATCH (c)-[tx_prev_month_all_prev_year:Make_transaction]->(:Terminal)
+            WHERE 
+                tx_prev_month_all_prev_year.tx_datetime.month = first_of_previous_month.month
+                AND tx_prev_month_all_prev_year.tx_datetime.year < first_of_previous_month.year
+            WITH
+                first_of_previous_month,
+                c,
+                tx_prev_month_all_prev_year.tx_datetime.year as year, 
+                CASE 
+                WHEN COUNT(tx_prev_month_all_prev_year)>0 THEN SUM(tx_prev_month_all_prev_year.tx_amount)
+                ELSE NULL
+                END AS tx_prev_month_prev_year_total_amount, 
+
+                CASE 
+                WHEN  COUNT(tx_prev_month_all_prev_year)>0 THEN COUNT(tx_prev_month_all_prev_year)
+                ELSE NULL
+                END AS tx_prev_month_prev_year_montly_freq
+            WITH
+            first_of_previous_month,
+            c, 
+            AVG(tx_prev_month_prev_year_total_amount) AS tx_prev_month_all_prev_year_total_amount_avg, 
+            AVG(tx_prev_month_prev_year_montly_freq) AS tx_prev_month_all_prev_year_montly_freq_avg
+
+            OPTIONAL MATCH (c)-[tx:Make_transaction]->(:Terminal)
+            WHERE 
+                tx.tx_datetime.month = first_of_previous_month.month AND 
+                tx.tx_datetime.year = first_of_previous_month.year
+            WITH
+                c,
+                SUM(tx.tx_amount) AS total_amount_prev_month, 
+                COUNT(tx) AS monthly_freq_prev_month,
+                tx_prev_month_all_prev_year_total_amount_avg,
+                tx_prev_month_all_prev_year_montly_freq_avg
+
+            RETURN
+                c, 
+                CASE 
+                    WHEN tx_prev_month_all_prev_year_total_amount_avg IS NULL THEN NULL
+                    ELSE total_amount_prev_month < tx_prev_month_all_prev_year_total_amount_avg
+                END AS is_under_total_amount_avg_of_same_period,
+
+                CASE 
+                    WHEN tx_prev_month_all_prev_year_montly_freq_avg IS NULL THEN NULL
+                    ELSE monthly_freq_prev_month < tx_prev_month_all_prev_year_montly_freq_avg
+                END AS is_under_monthly_freq_avg_of_same_period
+    """
+
+    try:
+        start_time=time.time()
+        result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
+        print("query_a execution time: {:.2f}s".format(time.time() - start_time))
+
+        return result
+    except Exception as e:
+        print(f"ERROR create_transaction_schema: {e}")
+        return None
+    finally:
+        close_neo4j_connection(driver)
+

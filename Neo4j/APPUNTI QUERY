@@ -330,7 +330,6 @@ RETURN
 
 
 
-versione definitiva
 
 
     WITH date("2023-06-15") AS today
@@ -387,6 +386,61 @@ RETURN
         WHEN tx_prev_month_all_prev_year_montly_freq_avg IS NULL THEN NULL
         ELSE monthly_freq_prev_month < tx_prev_month_all_prev_year_montly_freq_avg
     END AS is_under_monthly_freq_avg_of_same_period
+    
+    
+    
+    versione definitiva
+
+
+						WITH date.truncate('month', date("2023-05-06") ) - duration('P1M') AS first_of_previous_month
+            
+            MATCH (c:Customer)
+
+            OPTIONAL MATCH (c)-[tx_prev_month_all_prev_year:Make_transaction]->(:Terminal)
+            WHERE 
+                tx_prev_month_all_prev_year.tx_datetime.month = first_of_previous_month.month
+                AND tx_prev_month_all_prev_year.tx_datetime.year < first_of_previous_month.year
+            WITH
+                first_of_previous_month,
+                c,
+                tx_prev_month_all_prev_year.tx_datetime.year as year, 
+                CASE 
+                WHEN COUNT(tx_prev_month_all_prev_year)>0 THEN SUM(tx_prev_month_all_prev_year.tx_amount)
+                ELSE NULL
+                END AS tx_prev_month_prev_year_total_amount, 
+
+                CASE 
+                WHEN  COUNT(tx_prev_month_all_prev_year)>0 THEN COUNT(tx_prev_month_all_prev_year)
+                ELSE NULL
+                END AS tx_prev_month_prev_year_montly_freq
+            WITH
+            first_of_previous_month,
+            c, 
+            AVG(tx_prev_month_prev_year_total_amount) AS tx_prev_month_all_prev_year_total_amount_avg, 
+            AVG(tx_prev_month_prev_year_montly_freq) AS tx_prev_month_all_prev_year_montly_freq_avg
+
+            OPTIONAL MATCH (c)-[tx:Make_transaction]->(:Terminal)
+            WHERE 
+                tx.tx_datetime.month = first_of_previous_month.month AND 
+                tx.tx_datetime.year = first_of_previous_month.year
+            WITH
+                c,
+                SUM(tx.tx_amount) AS total_amount_prev_month, 
+                COUNT(tx) AS monthly_freq_prev_month,
+                tx_prev_month_all_prev_year_total_amount_avg,
+                tx_prev_month_all_prev_year_montly_freq_avg
+
+            RETURN
+                c, 
+                CASE 
+                    WHEN tx_prev_month_all_prev_year_total_amount_avg IS NULL THEN NULL
+                    ELSE total_amount_prev_month < tx_prev_month_all_prev_year_total_amount_avg
+                END AS is_under_total_amount_avg_of_same_period,
+
+                CASE 
+                    WHEN tx_prev_month_all_prev_year_montly_freq_avg IS NULL THEN NULL
+                    ELSE monthly_freq_prev_month < tx_prev_month_all_prev_year_montly_freq_avg
+                END AS is_under_monthly_freq_avg_of_same_period
 
 
 
