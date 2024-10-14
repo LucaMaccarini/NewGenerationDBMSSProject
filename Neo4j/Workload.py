@@ -2,9 +2,9 @@ from DB_functions import *
 import pandas as pd
 
 df = pd.DataFrame(query_a("2023-05-10"))
+print(df)
+#apply_optimizations_for_query_a()
 
-create_compound_index_on_tx_datetime_year_and_month()
-
-df = pd.DataFrame(query_a("2023-05-10"))
+df = pd.DataFrame(query_a_optimized("2023-05-10"))
 
 print(df)

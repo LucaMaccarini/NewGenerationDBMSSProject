@@ -127,8 +127,6 @@ def load_transactions_from_csv():
                 transaction.tx_time_days = toInteger(row.TX_TIME_DAYS),
                 transaction.tx_amount = toFloat(row.TX_AMOUNT), 
                 transaction.tx_datetime = localdatetime(replace(row.TX_DATETIME, " ", "T")),
-                transaction.tx_datetime_month = localdatetime(replace(row.TX_DATETIME, " ", "T")).month,
-                transaction.tx_datetime_year = localdatetime(replace(row.TX_DATETIME, " ", "T")).year,
                 transaction.tx_fraud = toBoolean(toInteger(row.TX_FRAUD)), 
                 transaction.tx_fraud_scenario = toInteger(row.TX_FRAUD_SCENARIO)
             ',
@@ -304,29 +302,38 @@ def query_a(day_under_analesis):
 
         return result
     except Exception as e:
-        print(f"ERROR create_transaction_schema: {e}")
+        print(f"ERROR query_a: {e}")
         return None
     finally:
         close_neo4j_connection(driver)
 
-def create_compound_index_on_tx_datetime_year_and_month():
+def apply_optimizations_for_query_a():
     driver = get_neo4j_connection()
     if driver is None:
         return False
 
-    query = """
-            CREATE INDEX composite_index_on_tx_datetime_year_and_month FOR ()-[tx:Make_transaction]-() ON (tx.tx_datetime.month, tx.tx_datetime.year)
-            """
+    queries = [
+        f"""
+            CALL apoc.periodic.iterate(
+                'MATCH (c:Customer)-[transaction:Make_transaction]->(t:Terminal) 
+                RETURN transaction',
+                'SET transaction.tx_datetime_month = transaction.tx_datetime.month, 
+                     transaction.tx_datetime_year = transaction.tx_datetime.year',
+                {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
+            )
+        """,
+        "CREATE INDEX composite_index_on_tx_datetime_year_and_month FOR ()-[tx:Make_transaction]-() ON (tx.tx_datetime_month, tx.tx_datetime_year)",
+    ]
 
     try:
         start_time=time.time()
-        result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
-        print("create_compound_index_on_tx_datetime_year_and_month execution time: {:.2f}s".format(time.time() - start_time))
-
-        return result
+        for query in queries:
+            driver.execute_query(query)
+        print("apply_optimizations_for_query_a execution time: {:.2f}s".format(time.time()-start_time))
+        return True
     except Exception as e:
-        print(f"ERROR create_compound_index_on_tx_datetime_year_and_month: {e}")
-        return None
+        print(f"ERROR apply_optimizations_for_query_a: {e}")
+        return False
     finally:
         close_neo4j_connection(driver)
 
@@ -339,25 +346,16 @@ def query_a_optimized(day_under_analesis):
     query = f"""
             WITH date.truncate('month', date("{day_under_analesis}") ) - duration('P1M') AS first_of_previous_month
 
-            MATCH (c:Customer)
-
-            OPTIONAL MATCH (c)-[tx_prev_month_all_prev_year:Make_transaction]->(:Terminal)
+            MATCH (c)-[tx_prev_month_all_prev_year:Make_transaction]->(:Terminal)
             WHERE 
-                tx_prev_month_all_prev_year.tx_datetime_month = first_of_previous_month_month
-                AND tx_prev_month_all_prev_year.tx_datetime_year < first_of_previous_month_year
+                tx_prev_month_all_prev_year.tx_datetime_month = first_of_previous_month.month
+                AND tx_prev_month_all_prev_year.tx_datetime_year < first_of_previous_month.year
             WITH
                 first_of_previous_month,
                 c,
-                tx_prev_month_all_prev_year.tx_datetime_year as year, 
-                CASE 
-                    WHEN COUNT(tx_prev_month_all_prev_year)>0 THEN SUM(tx_prev_month_all_prev_year.tx_amount)
-                    ELSE NULL
-                END AS tx_prev_month_prev_year_total_amount, 
-
-                CASE 
-                    WHEN  COUNT(tx_prev_month_all_prev_year)>0 THEN COUNT(tx_prev_month_all_prev_year)
-                    ELSE NULL
-                END AS tx_prev_month_prev_year_montly_freq
+                tx_prev_month_all_prev_year.tx_datetime_year as year,
+                SUM(tx_prev_month_all_prev_year.tx_amount)  AS tx_prev_month_prev_year_total_amount, 
+                COUNT(tx_prev_month_all_prev_year) AS tx_prev_month_prev_year_montly_freq
             WITH
             first_of_previous_month,
             c, 
@@ -366,8 +364,8 @@ def query_a_optimized(day_under_analesis):
 
             OPTIONAL MATCH (c)-[tx:Make_transaction]->(:Terminal)
             WHERE 
-                tx.tx_datetime_month = first_of_previous_month_month AND 
-                tx.tx_datetime_year = first_of_previous_month_year
+                tx.tx_datetime_month = first_of_previous_month.month AND 
+                tx.tx_datetime_year = first_of_previous_month.year
             WITH
                 c,
                 SUM(tx.tx_amount) AS total_amount_prev_month, 
@@ -377,25 +375,18 @@ def query_a_optimized(day_under_analesis):
 
             RETURN
                 c, 
-                CASE 
-                    WHEN tx_prev_month_all_prev_year_total_amount_avg IS NULL THEN NULL
-                    ELSE total_amount_prev_month < tx_prev_month_all_prev_year_total_amount_avg
-                END AS is_under_total_amount_avg_of_same_period,
-
-                CASE 
-                    WHEN tx_prev_month_all_prev_year_montly_freq_avg IS NULL THEN NULL
-                    ELSE monthly_freq_prev_month < tx_prev_month_all_prev_year_montly_freq_avg
-                END AS is_under_monthly_freq_avg_of_same_period
-    """
+                total_amount_prev_month < tx_prev_month_all_prev_year_total_amount_avg  AS is_under_total_amount_avg_of_same_period,
+                monthly_freq_prev_month < tx_prev_month_all_prev_year_montly_freq_avg AS is_under_monthly_freq_avg_of_same_period
+            """
 
     try:
         start_time=time.time()
         result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
-        print("query_a execution time: {:.2f}s".format(time.time() - start_time))
+        print("query_a_optimized execution time: {:.2f}s".format(time.time() - start_time))
 
         return result
     except Exception as e:
-        print(f"ERROR create_transaction_schema: {e}")
+        print(f"ERROR query_a_optimized: {e}")
         return None
     finally:
         close_neo4j_connection(driver)
