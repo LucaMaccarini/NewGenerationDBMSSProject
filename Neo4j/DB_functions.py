@@ -127,6 +127,8 @@ def load_transactions_from_csv():
                 transaction.tx_time_days = toInteger(row.TX_TIME_DAYS),
                 transaction.tx_amount = toFloat(row.TX_AMOUNT), 
                 transaction.tx_datetime = localdatetime(replace(row.TX_DATETIME, " ", "T")),
+                transaction.tx_datetime_month = localdatetime(replace(row.TX_DATETIME, " ", "T")).month,
+                transaction.tx_datetime_year = localdatetime(replace(row.TX_DATETIME, " ", "T")).year,
                 transaction.tx_fraud = toBoolean(toInteger(row.TX_FRAUD)), 
                 transaction.tx_fraud_scenario = toInteger(row.TX_FRAUD_SCENARIO)
             ',
@@ -257,13 +259,13 @@ def query_a(day_under_analesis):
                 c,
                 tx_prev_month_all_prev_year.tx_datetime.year as year, 
                 CASE 
-                WHEN COUNT(tx_prev_month_all_prev_year)>0 THEN SUM(tx_prev_month_all_prev_year.tx_amount)
-                ELSE NULL
+                    WHEN COUNT(tx_prev_month_all_prev_year)>0 THEN SUM(tx_prev_month_all_prev_year.tx_amount)
+                    ELSE NULL
                 END AS tx_prev_month_prev_year_total_amount, 
 
                 CASE 
-                WHEN  COUNT(tx_prev_month_all_prev_year)>0 THEN COUNT(tx_prev_month_all_prev_year)
-                ELSE NULL
+                    WHEN  COUNT(tx_prev_month_all_prev_year)>0 THEN COUNT(tx_prev_month_all_prev_year)
+                    ELSE NULL
                 END AS tx_prev_month_prev_year_montly_freq
             WITH
             first_of_previous_month,
@@ -275,6 +277,97 @@ def query_a(day_under_analesis):
             WHERE 
                 tx.tx_datetime.month = first_of_previous_month.month AND 
                 tx.tx_datetime.year = first_of_previous_month.year
+            WITH
+                c,
+                SUM(tx.tx_amount) AS total_amount_prev_month, 
+                COUNT(tx) AS monthly_freq_prev_month,
+                tx_prev_month_all_prev_year_total_amount_avg,
+                tx_prev_month_all_prev_year_montly_freq_avg
+
+            RETURN
+                c, 
+                CASE 
+                    WHEN tx_prev_month_all_prev_year_total_amount_avg IS NULL THEN NULL
+                    ELSE total_amount_prev_month < tx_prev_month_all_prev_year_total_amount_avg
+                END AS is_under_total_amount_avg_of_same_period,
+
+                CASE 
+                    WHEN tx_prev_month_all_prev_year_montly_freq_avg IS NULL THEN NULL
+                    ELSE monthly_freq_prev_month < tx_prev_month_all_prev_year_montly_freq_avg
+                END AS is_under_monthly_freq_avg_of_same_period
+    """
+
+    try:
+        start_time=time.time()
+        result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
+        print("query_a execution time: {:.2f}s".format(time.time() - start_time))
+
+        return result
+    except Exception as e:
+        print(f"ERROR create_transaction_schema: {e}")
+        return None
+    finally:
+        close_neo4j_connection(driver)
+
+def create_compound_index_on_tx_datetime_year_and_month():
+    driver = get_neo4j_connection()
+    if driver is None:
+        return False
+
+    query = """
+            CREATE INDEX composite_index_on_tx_datetime_year_and_month FOR ()-[tx:Make_transaction]-() ON (tx.tx_datetime.month, tx.tx_datetime.year)
+            """
+
+    try:
+        start_time=time.time()
+        result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
+        print("create_compound_index_on_tx_datetime_year_and_month execution time: {:.2f}s".format(time.time() - start_time))
+
+        return result
+    except Exception as e:
+        print(f"ERROR create_compound_index_on_tx_datetime_year_and_month: {e}")
+        return None
+    finally:
+        close_neo4j_connection(driver)
+
+#day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
+def query_a_optimized(day_under_analesis):
+    driver = get_neo4j_connection()
+    if driver is None:
+        return False
+
+    query = f"""
+            WITH date.truncate('month', date("{day_under_analesis}") ) - duration('P1M') AS first_of_previous_month
+
+            MATCH (c:Customer)
+
+            OPTIONAL MATCH (c)-[tx_prev_month_all_prev_year:Make_transaction]->(:Terminal)
+            WHERE 
+                tx_prev_month_all_prev_year.tx_datetime_month = first_of_previous_month_month
+                AND tx_prev_month_all_prev_year.tx_datetime_year < first_of_previous_month_year
+            WITH
+                first_of_previous_month,
+                c,
+                tx_prev_month_all_prev_year.tx_datetime_year as year, 
+                CASE 
+                    WHEN COUNT(tx_prev_month_all_prev_year)>0 THEN SUM(tx_prev_month_all_prev_year.tx_amount)
+                    ELSE NULL
+                END AS tx_prev_month_prev_year_total_amount, 
+
+                CASE 
+                    WHEN  COUNT(tx_prev_month_all_prev_year)>0 THEN COUNT(tx_prev_month_all_prev_year)
+                    ELSE NULL
+                END AS tx_prev_month_prev_year_montly_freq
+            WITH
+            first_of_previous_month,
+            c, 
+            AVG(tx_prev_month_prev_year_total_amount) AS tx_prev_month_all_prev_year_total_amount_avg, 
+            AVG(tx_prev_month_prev_year_montly_freq) AS tx_prev_month_all_prev_year_montly_freq_avg
+
+            OPTIONAL MATCH (c)-[tx:Make_transaction]->(:Terminal)
+            WHERE 
+                tx.tx_datetime_month = first_of_previous_month_month AND 
+                tx.tx_datetime_year = first_of_previous_month_year
             WITH
                 c,
                 SUM(tx.tx_amount) AS total_amount_prev_month, 
