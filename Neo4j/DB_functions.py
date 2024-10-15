@@ -123,8 +123,12 @@ def load_transactions_from_csv():
         CALL apoc.periodic.iterate(
             'LOAD CSV WITH HEADERS FROM "{config.transactions_csv_link}" AS row FIELDTERMINATOR ";" 
             RETURN row',
-            'WITH localdatetime(replace(row.TX_DATETIME, " ", "T")) AS parsed_date, 
-                  row
+            'WITH row,
+                  split(row.TX_DATETIME, " ") AS splitted_date_time
+                  
+            WITH row,
+                 date(splitted_date_time[0]) AS parsed_date,
+                 localtime(splitted_date_time[1]) AS parsed_local_time
 
             MATCH (c:Customer {{customer_id: toInteger(row.CUSTOMER_ID)}}), 
                 (t:Terminal {{terminal_id: toInteger(row.TERMINAL_ID)}})
@@ -136,14 +140,10 @@ def load_transactions_from_csv():
                 transaction.tx_fraud = toBoolean(toInteger(row.TX_FRAUD)), 
                 transaction.tx_fraud_scenario = toInteger(row.TX_FRAUD_SCENARIO),
 
-                
-                transaction.tx_datetime_day = parsed_date.day,
-                transaction.tx_datetime_month = parsed_date.month,
-                transaction.tx_datetime_year = parsed_date.year,
-                transaction.tx_time_hour = parsed_date.hour,
-                transaction.tx_time_minute = parsed_date.minute,
-                transaction.tx_time_second = parsed_date.second
-
+                transaction.tx_date_day = parsed_date.day,
+                transaction.tx_date_month = parsed_date.month,
+                transaction.tx_date_year = parsed_date.year, 
+                transaction.tx_time = parsed_local_time 
             ',
             {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
         )
@@ -233,12 +233,12 @@ def create_transaction_schema():
         "CREATE CONSTRAINT tx_time_days_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_time_days IS NOT NULL;",
         "CREATE CONSTRAINT tx_amount_is_float FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_amount IS :: FLOAT;",
         "CREATE CONSTRAINT tx_amount_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_amount IS NOT NULL;",
-        "CREATE CONSTRAINT tx_datetime_day_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime_day IS :: INTEGER;",
-        "CREATE CONSTRAINT tx_datetime_day_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime_day IS NOT NULL;",
-        "CREATE CONSTRAINT tx_datetime_month_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime_month IS :: INTEGER;",
-        "CREATE CONSTRAINT tx_datetime_month_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime_month IS NOT NULL;",
-        "CREATE CONSTRAINT tx_datetime_year_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime_year IS :: INTEGER;",
-        "CREATE CONSTRAINT tx_datetime_year_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime_year IS NOT NULL;",
+        "CREATE CONSTRAINT tx_date_day_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_date_day IS NOT NULL;",
+        "CREATE CONSTRAINT tx_date_day_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_date_day IS :: INTEGER;",
+        "CREATE CONSTRAINT tx_date_month_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_date_month IS :: INTEGER;",
+        "CREATE CONSTRAINT tx_date_month_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_date_month IS NOT NULL;",
+        "CREATE CONSTRAINT tx_date_year_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_date_year IS :: INTEGER;",
+        "CREATE CONSTRAINT tx_date_year_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_date_year IS NOT NULL;",
         "CREATE CONSTRAINT tx_time_is_localtime FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_time IS :: LOCAL TIME;",
         "CREATE CONSTRAINT tx_time_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_time IS NOT NULL;",
         "CREATE CONSTRAINT tx_fraud_is_boolean FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_fraud IS :: BOOLEAN;",
@@ -272,12 +272,12 @@ def query_a1(day_under_analesis):
 
             OPTIONAL MATCH (c)-[tx_prev_month_all_prev_year:Make_transaction]->(:Terminal)
             WHERE 
-                tx_prev_month_all_prev_year.tx_datetime_month = first_of_previous_month.month
-                AND tx_prev_month_all_prev_year.tx_datetime_year < first_of_previous_month.year
+                tx_prev_month_all_prev_year.tx_date_month = first_of_previous_month.month
+                AND tx_prev_month_all_prev_year.tx_date_year < first_of_previous_month.year
             WITH
                 first_of_previous_month,
                 c,
-                tx_prev_month_all_prev_year.tx_datetime_year as year, 
+                tx_prev_month_all_prev_year.tx_date_year as year, 
                 CASE 
                     WHEN COUNT(tx_prev_month_all_prev_year)>0 THEN SUM(tx_prev_month_all_prev_year.tx_amount)
                     ELSE NULL
@@ -295,8 +295,8 @@ def query_a1(day_under_analesis):
 
             OPTIONAL MATCH (c)-[tx:Make_transaction]->(:Terminal)
             WHERE 
-                tx.tx_datetime_month = first_of_previous_month.month AND 
-                tx.tx_datetime_year = first_of_previous_month.year
+                tx.tx_date_month = first_of_previous_month.month AND 
+                tx.tx_date_year = first_of_previous_month.year
             WITH
                 c,
                 SUM(tx.tx_amount) AS total_amount_prev_month, 
@@ -329,21 +329,21 @@ def query_a1(day_under_analesis):
     finally:
         close_neo4j_connection(driver)
 
-def create_index_for_query_a():
+def create_index_if_not_exists_for_query_a():
     driver = get_neo4j_connection()
     if driver is None:
         return False
 
-    query = "CREATE INDEX composite_index_on_tx_datetime_year_and_month FOR ()-[tx:Make_transaction]-() ON (tx.tx_datetime_month, tx.tx_datetime_year)",
+    query = "CREATE INDEX composite_index_on_tx_date_year_and_month IF NOT EXISTS FOR ()-[tx:Make_transaction]-() ON (tx.tx_date_month, tx.tx_date_year)"
 
     try:
         start_time=time.time()
 
         driver.execute_query(query)
-        print("create_index_for_query_a execution time: {:.2f}s".format(time.time()-start_time))
+        print("create_index_if_not_exists_for_query_a execution time: {:.2f}s".format(time.time()-start_time))
         return True
     except Exception as e:
-        print(f"ERROR create_index_for_query_a: {e}")
+        print(f"ERROR create_index_if_not_exists_for_query_a: {e}")
         return False
     finally:
         close_neo4j_connection(driver)
@@ -359,12 +359,12 @@ def query_a2(day_under_analesis):
 
             MATCH (c)-[tx_prev_month_all_prev_year:Make_transaction]->(:Terminal)
             WHERE 
-                tx_prev_month_all_prev_year.tx_datetime_month = first_of_previous_month.month
-                AND tx_prev_month_all_prev_year.tx_datetime_year < first_of_previous_month.year
+                tx_prev_month_all_prev_year.tx_date_month = first_of_previous_month.month
+                AND tx_prev_month_all_prev_year.tx_date_year < first_of_previous_month.year
             WITH
                 first_of_previous_month,
                 c,
-                tx_prev_month_all_prev_year.tx_datetime_year as year,
+                tx_prev_month_all_prev_year.tx_date_year as year,
                 SUM(tx_prev_month_all_prev_year.tx_amount)  AS tx_prev_month_prev_year_total_amount, 
                 COUNT(tx_prev_month_all_prev_year) AS tx_prev_month_prev_year_montly_freq
             WITH
@@ -375,8 +375,8 @@ def query_a2(day_under_analesis):
 
             OPTIONAL MATCH (c)-[tx:Make_transaction]->(:Terminal)
             WHERE 
-                tx.tx_datetime_month = first_of_previous_month.month AND 
-                tx.tx_datetime_year = first_of_previous_month.year
+                tx.tx_date_month = first_of_previous_month.month AND 
+                tx.tx_date_year = first_of_previous_month.year
             WITH
                 c,
                 SUM(tx.tx_amount) AS total_amount_prev_month, 
