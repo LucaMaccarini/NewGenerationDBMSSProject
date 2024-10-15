@@ -24,7 +24,11 @@ def clear_database():
     if driver is None:
         return False
 
-    delete_nodes_query = "MATCH (n) DETACH DELETE n"
+    delete_nodes_query = f"""
+        MATCH (n)
+        CALL apoc.nodes.delete(n, {config.lines_per_commit}) YIELD value
+        RETURN value
+    """
     
     try:
         start_time=time.time()
