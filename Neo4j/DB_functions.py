@@ -123,20 +123,32 @@ def load_transactions_from_csv():
         CALL apoc.periodic.iterate(
             'LOAD CSV WITH HEADERS FROM "{config.transactions_csv_link}" AS row FIELDTERMINATOR ";" 
             RETURN row',
-            'MATCH (c:Customer {{customer_id: toInteger(row.CUSTOMER_ID)}}), 
+            'WITH localdatetime(replace(row.TX_DATETIME, " ", "T")) AS parsed_date, 
+                  row
+
+            MATCH (c:Customer {{customer_id: toInteger(row.CUSTOMER_ID)}}), 
                 (t:Terminal {{terminal_id: toInteger(row.TERMINAL_ID)}})
             MERGE (c)-[transaction:Make_transaction {{transaction_id: toInteger(row.TRANSACTION_ID)}}]->(t)
             ON CREATE SET 
                 transaction.tx_time_seconds = toInteger(row.TX_TIME_SECONDS), 
                 transaction.tx_time_days = toInteger(row.TX_TIME_DAYS),
                 transaction.tx_amount = toFloat(row.TX_AMOUNT), 
-                transaction.tx_datetime = localdatetime(replace(row.TX_DATETIME, " ", "T")),
                 transaction.tx_fraud = toBoolean(toInteger(row.TX_FRAUD)), 
-                transaction.tx_fraud_scenario = toInteger(row.TX_FRAUD_SCENARIO)
+                transaction.tx_fraud_scenario = toInteger(row.TX_FRAUD_SCENARIO),
+
+                
+                transaction.tx_datetime_day = parsed_date.day,
+                transaction.tx_datetime_month = parsed_date.month,
+                transaction.tx_datetime_year = parsed_date.year,
+                transaction.tx_time_hour = parsed_date.hour,
+                transaction.tx_time_minute = parsed_date.minute,
+                transaction.tx_time_second = parsed_date.second
+
             ',
             {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
         )
     """
+
 
     try:
         start_time=time.time()
@@ -221,8 +233,14 @@ def create_transaction_schema():
         "CREATE CONSTRAINT tx_time_days_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_time_days IS NOT NULL;",
         "CREATE CONSTRAINT tx_amount_is_float FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_amount IS :: FLOAT;",
         "CREATE CONSTRAINT tx_amount_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_amount IS NOT NULL;",
-        "CREATE CONSTRAINT tx_datetime_is_localdatetime FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime :: LOCAL DATETIME;",
-        "CREATE CONSTRAINT tx_datetime_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime IS NOT NULL;",
+        "CREATE CONSTRAINT tx_datetime_day_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime_day IS :: INTEGER;",
+        "CREATE CONSTRAINT tx_datetime_day_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime_day IS NOT NULL;",
+        "CREATE CONSTRAINT tx_datetime_month_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime_month IS :: INTEGER;",
+        "CREATE CONSTRAINT tx_datetime_month_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime_month IS NOT NULL;",
+        "CREATE CONSTRAINT tx_datetime_year_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime_year IS :: INTEGER;",
+        "CREATE CONSTRAINT tx_datetime_year_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_datetime_year IS NOT NULL;",
+        "CREATE CONSTRAINT tx_time_is_localtime FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_time IS :: LOCAL TIME;",
+        "CREATE CONSTRAINT tx_time_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_time IS NOT NULL;",
         "CREATE CONSTRAINT tx_fraud_is_boolean FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_fraud IS :: BOOLEAN;",
         "CREATE CONSTRAINT tx_fraud_is_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_fraud IS NOT NULL;",
         "CREATE CONSTRAINT tx_fraud_scenario_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_fraud_scenario IS :: INTEGER;",
@@ -242,7 +260,7 @@ def create_transaction_schema():
         close_neo4j_connection(driver)
 
 #day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
-def query_a(day_under_analesis):
+def query_a1(day_under_analesis):
     driver = get_neo4j_connection()
     if driver is None:
         return False
@@ -254,12 +272,12 @@ def query_a(day_under_analesis):
 
             OPTIONAL MATCH (c)-[tx_prev_month_all_prev_year:Make_transaction]->(:Terminal)
             WHERE 
-                tx_prev_month_all_prev_year.tx_datetime.month = first_of_previous_month.month
-                AND tx_prev_month_all_prev_year.tx_datetime.year < first_of_previous_month.year
+                tx_prev_month_all_prev_year.tx_datetime_month = first_of_previous_month.month
+                AND tx_prev_month_all_prev_year.tx_datetime_year < first_of_previous_month.year
             WITH
                 first_of_previous_month,
                 c,
-                tx_prev_month_all_prev_year.tx_datetime.year as year, 
+                tx_prev_month_all_prev_year.tx_datetime_year as year, 
                 CASE 
                     WHEN COUNT(tx_prev_month_all_prev_year)>0 THEN SUM(tx_prev_month_all_prev_year.tx_amount)
                     ELSE NULL
@@ -277,8 +295,8 @@ def query_a(day_under_analesis):
 
             OPTIONAL MATCH (c)-[tx:Make_transaction]->(:Terminal)
             WHERE 
-                tx.tx_datetime.month = first_of_previous_month.month AND 
-                tx.tx_datetime.year = first_of_previous_month.year
+                tx.tx_datetime_month = first_of_previous_month.month AND 
+                tx.tx_datetime_year = first_of_previous_month.year
             WITH
                 c,
                 SUM(tx.tx_amount) AS total_amount_prev_month, 
@@ -311,38 +329,27 @@ def query_a(day_under_analesis):
     finally:
         close_neo4j_connection(driver)
 
-def apply_optimizations_for_query_a():
+def create_index_for_query_a():
     driver = get_neo4j_connection()
     if driver is None:
         return False
 
-    queries = [
-        f"""
-            CALL apoc.periodic.iterate(
-                'MATCH (c:Customer)-[transaction:Make_transaction]->(t:Terminal) 
-                RETURN transaction',
-                'SET transaction.tx_datetime_month = transaction.tx_datetime.month, 
-                     transaction.tx_datetime_year = transaction.tx_datetime.year',
-                {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
-            )
-        """,
-        "CREATE INDEX composite_index_on_tx_datetime_year_and_month FOR ()-[tx:Make_transaction]-() ON (tx.tx_datetime_month, tx.tx_datetime_year)",
-    ]
+    query = "CREATE INDEX composite_index_on_tx_datetime_year_and_month FOR ()-[tx:Make_transaction]-() ON (tx.tx_datetime_month, tx.tx_datetime_year)",
 
     try:
         start_time=time.time()
-        for query in queries:
-            driver.execute_query(query)
-        print("apply_optimizations_for_query_a execution time: {:.2f}s".format(time.time()-start_time))
+
+        driver.execute_query(query)
+        print("create_index_for_query_a execution time: {:.2f}s".format(time.time()-start_time))
         return True
     except Exception as e:
-        print(f"ERROR apply_optimizations_for_query_a: {e}")
+        print(f"ERROR create_index_for_query_a: {e}")
         return False
     finally:
         close_neo4j_connection(driver)
 
 #day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
-def query_a_optimized(day_under_analesis):
+def query_a2(day_under_analesis):
     driver = get_neo4j_connection()
     if driver is None:
         return False
