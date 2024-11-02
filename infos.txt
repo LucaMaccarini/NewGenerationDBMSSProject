@@ -290,7 +290,7 @@ CALL apoc.path.expandConfig(start, {
 
 WITH path
 WHERE length(path) = k
-RETURN DISTINCT nodes(path)[-1].customer_id AS CO_Customer, path
+RETURN nodes(path)[-1].customer_id AS CO_Customer
 
 
 

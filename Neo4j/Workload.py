@@ -27,7 +27,7 @@ import pandas as pd
 
 print("\n\n==========================\n")
 print("Q_c")
-df = pd.DataFrame(query_c(1,1))
+df = pd.DataFrame(query_c(1,15))
 print(df.head())
 
 

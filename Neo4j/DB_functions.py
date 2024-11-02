@@ -504,8 +504,19 @@ def query_c(customer_id, k):
     if driver is None:
         return False
 
-    query = """
-            
+    query = f"""
+            WITH {k-1} * 2 AS k
+            MATCH (start:Customer {{customer_id: {customer_id}}})
+            CALL apoc.path.expandConfig(start, {{
+                relationshipFilter: 'Make_transaction',
+                labelFilter: 'Terminal|Customer',
+                maxLevel: k,
+                uniqueness: 'NODE_GLOBAL'
+            }}) YIELD path
+
+            WITH path
+            WHERE length(path) = k
+            RETURN nodes(path)[-1].customer_id AS CO_Customer
             """
     try:
         start_time=time.time()
