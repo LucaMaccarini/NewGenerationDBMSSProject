@@ -1,0 +1,299 @@
+match(n)
+detach delete n
+
+// Creazione del nodo Customer
+CREATE (c:Customer {
+    ID: 0,
+    coord_x: 54.88135039273247,
+    coord_y: 71.51893663724195,
+    spending_mean: 62.262520726806166,
+    spending_std: 31.131260363403083,
+    transactions_per_day_mean: 2.1795327319875875
+})
+
+// Creazione del nodo Terminal
+CREATE (t:Terminal {
+    ID: 0,
+    coord_x: 41.7022004702574,
+    coord_y: 72.0324493442158
+})
+
+// Creazione della relazione TRANSACTION (direzionale)
+CREATE (c)-[:TRANSACTION {
+    ID: 0,
+    duration_days: 0,
+    duration_seconds: 31,
+    dateAndTime: '2018-04-01 00:00:31',
+    amount: 57.16,
+    isFraud: false,
+    fraudScenario: 0
+}]->(t)
+
+
+
+
+
+
+
+WITH date("2020-05-05") AS today
+WITH today, date.truncate('month', today ) - duration('P1M') AS first_of_previous_month
+
+MATCH (t:Terminal)
+
+OPTIONAL MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t)
+  WHERE 
+    tx_prev_month.tx_date_month = first_of_previous_month.month
+    AND tx_prev_month.tx_date_year = first_of_previous_month.year
+
+with today, t, max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+
+OPTIONAL MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
+  WHERE 
+    tx_current_month.tx_date_month = today.month
+    AND tx_current_month.tx_date_year = today.year
+
+RETURN 
+    t, 
+    tx_current_month, 
+    CASE 
+        WHEN tx_amount_fraud_limit IS NULL THEN NULL
+        WHEN tx_current_month.tx_amount > tx_amount_fraud_limit THEN true 
+        ELSE false 
+    END AS is_fraud
+
+
+
+
+
+
+WITH date("2020-05-05") AS today
+WITH today, date.truncate('month', today ) - duration('P1M') AS first_of_previous_month
+
+MATCH (t:Terminal)
+
+OPTIONAL MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t)
+  WHERE 
+    tx_prev_month.tx_date_month = first_of_previous_month.month
+    AND tx_prev_month.tx_date_year = first_of_previous_month.year
+
+with today, t, max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+
+OPTIONAL MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
+  WHERE 
+    tx_current_month.tx_date_month = today.month
+    AND tx_current_month.tx_date_year = today.year
+
+WITH 
+    t, 
+    tx_amount_fraud_limit,
+    COLLECT(CASE 
+        WHEN tx_current_month.tx_amount > tx_amount_fraud_limit THEN tx_current_month 
+        ELSE NULL 
+    END) AS fraud_txs_current_month
+
+RETURN 
+    t, 
+    CASE 
+        WHEN tx_amount_fraud_limit IS NULL THEN NULL
+        ELSE fraud_txs_current_month
+    END AS fraud_txs_current_month
+
+
+
+---------------
+
+
+WITH date("2020-05-05") AS today
+WITH today, date.truncate('month', today ) - duration('P1M') AS first_of_previous_month
+
+MATCH (t:Terminal)
+
+OPTIONAL MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t)
+  WHERE 
+    tx_prev_month.tx_date_month = first_of_previous_month.month
+    AND tx_prev_month.tx_date_year = first_of_previous_month.year
+
+with today, t, max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+
+OPTIONAL MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
+  WHERE 
+    tx_current_month.tx_date_month = today.month
+    AND tx_current_month.tx_date_year = today.year
+
+WITH 
+    t, 
+    tx_amount_fraud_limit,
+    COLLECT(CASE 
+        WHEN tx_amount_fraud_limit IS NOT NULL AND tx_current_month.tx_amount > tx_amount_fraud_limit THEN tx_current_month 
+        ELSE NULL 
+    END) AS fraud_tx_current_month
+
+RETURN 
+    t, 
+    CASE 
+        WHEN tx_amount_fraud_limit IS NULL THEN NULL
+        ELSE fraud_tx_current_month
+    END AS fraud_tx_current_month
+
+
+
+
+
+
+WITH date("2020-05-05") AS today
+WITH today, date.truncate('month', today ) - duration('P1M') AS first_of_previous_month
+
+MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t:Terminal)
+  WHERE 
+    tx_prev_month.tx_date_month = first_of_previous_month.month
+    AND tx_prev_month.tx_date_year = first_of_previous_month.year
+
+with today, t, max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+
+OPTIONAL MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
+  WHERE 
+    tx_current_month.tx_date_month = today.month
+    AND tx_current_month.tx_date_year = today.year
+
+RETURN 
+    t,
+    COLLECT( 
+        CASE 
+            WHEN tx_current_month.tx_amount > tx_amount_fraud_limit THEN tx_current_month 
+            ELSE NULL 
+        END 
+    )AS fraud_txs_current_month
+
+
+
+
+MATCH p = (u_1:Customer {customer_id:1})-[:Make_transaction*3]-(u_2:Customer)
+WHERE all(node IN nodes(p)[1..-1] WHERE node:Terminal)
+RETURN u_1, u_2
+
+
+MATCH path = (u_i:Customer {customer_id: 1})-[:Make_transaction]*2-(u_f:Customer)
+WHERE all(
+    idx IN range(1, length(path) - 2)
+    WHERE 
+        (idx % 2 = 1 AND (nodes(path)[idx]):Terminal) 
+        OR (idx % 2 = 0 AND (nodes(path)[idx]):Customer)
+)
+RETURN u_i, u_f
+
+
+MATCH path = (u_i:Customer {customer_id: 1})-[:Make_transaction*2]-(u_f:Customer)
+WHERE 
+    u_i <> u_f AND
+    all(idx IN range(1, length(path) - 2)
+        WHERE 
+            (
+                idx % 2 = 0 AND (nodes(path)[idx]):Customer
+                //AND 
+                //(relationships(path)[idx]).direction = 'OUT'
+            )
+            OR 
+            (
+                idx % 2 = 1 AND (nodes(path)[idx]):Terminal 
+                //AND 
+                //(relationships(path)[idx]).direction = 'IN'
+            )
+    )
+RETURN DISTINCT u_i.customer_id, u_f.customer_id
+
+MATCH (u_i:Customer {customer_id: 1})-[:Make_transaction*2]-(u_f:Customer)
+WHERE 
+    u_i.customer_id <> u_f.customer_id
+RETURN DISTINCT u_i.customer_id, u_f.customer_id
+
+
+MATCH (u_i:Customer {customer_id: 1})
+CALL apoc.path.subgraphNodes(u_i, {
+  relationshipFilter: 'Make_transaction',
+  labelFilter: 'Customer',
+  labelFilter: "Terminal|Customer",
+  maxLevel: 2
+}) YIELD node AS u_f
+WHERE u_i <> u_f
+RETURN DISTINCT u_i.customer_id, u_f.customer_id
+
+
+
+
+MATCH (u_i:Customer {customer_id: 1})
+CALL apoc.path.subgraphNodes(u_i, {
+  relationshipFilter: 'Make_transaction',
+  labelFilter: 'Customer',
+  maxLevel: 2
+}) YIELD node AS u_f
+WHERE u_i <> u_f
+WITH DISTINCT u_i, u_f
+MATCH path = (u_i)-[:Make_transaction*2]->(u_f)
+RETURN u_i.customer_id, u_f.customer_id
+
+
+WITH 2 * 2 as k
+MATCH (start:Customer {customer_id: 1})
+CALL apoc.path.expandConfig(start, {
+  relationshipFilter: 'Make_transaction',
+  labelFilter: 'Terminal|Customer',
+  maxLevel:  k
+}) YIELD path
+
+WITH path
+WHERE length(path) = k
+RETURN nodes(path)[0] AS firstCustomer, nodes(path)[-1] AS lastCustomer
+
+
+
+WITH 2 as k
+MATCH (start:Customer {customer_id: 1})
+CALL apoc.path.expandConfig(start, {
+    relationshipFilter: 'Make_transaction',
+    labelFilter: 'Terminal|Customer',
+    maxLevel: k
+}) YIELD path
+
+WITH path
+WHERE length(path) = k
+RETURN DISTINCT nodes(path)[-1].customer_id AS CO_Customer
+
+
+WITH 2 AS k
+MATCH (start:Customer {customer_id: 1})
+CALL apoc.path.expandConfig(start, {
+    relationshipFilter: 'Make_transaction',
+    labelFilter: 'Terminal|Customer',
+    maxLevel: k,
+    uniqueness: 'NODE_GLOBAL'  // Questo garantisce che ogni nodo sia unico
+}) YIELD path
+
+WITH path
+WHERE length(path) = k
+RETURN DISTINCT nodes(path)[-1].customer_id AS CO_Customer
+
+
+
+
+
+
+
+
+WITH 4 AS k
+MATCH (start:Customer {customer_id: 1})
+CALL apoc.path.expandConfig(start, {
+    relationshipFilter: 'Make_transaction',
+    labelFilter: 'Terminal|Customer',
+    maxLevel: k,
+    uniqueness: 'NODE_GLOBAL'
+}) YIELD path
+
+WITH path
+WHERE length(path) = k
+RETURN DISTINCT nodes(path)[-1].customer_id AS CO_Customer, path
+
+
+
+
+    
+    

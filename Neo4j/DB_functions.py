@@ -305,7 +305,8 @@ def query_a1(day_under_analesis):
                 tx_prev_month_all_prev_year_montly_freq_avg
 
             RETURN
-                c, 
+                c,
+
                 CASE 
                     WHEN tx_prev_month_all_prev_year_total_amount_avg IS NULL THEN NULL
                     ELSE total_amount_prev_month < tx_prev_month_all_prev_year_total_amount_avg
@@ -329,7 +330,7 @@ def query_a1(day_under_analesis):
     finally:
         close_neo4j_connection(driver)
 
-def create_index_if_not_exists_for_query_a():
+def create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year():
     driver = get_neo4j_connection()
     if driver is None:
         return False
@@ -340,10 +341,10 @@ def create_index_if_not_exists_for_query_a():
         start_time=time.time()
 
         driver.execute_query(query)
-        print("create_index_if_not_exists_for_query_a execution time: {:.2f}s".format(time.time()-start_time))
+        print("create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year execution time: {:.2f}s".format(time.time()-start_time))
         return True
     except Exception as e:
-        print(f"ERROR create_index_if_not_exists_for_query_a: {e}")
+        print(f"ERROR create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year: {e}")
         return False
     finally:
         close_neo4j_connection(driver)
@@ -393,12 +394,127 @@ def query_a2(day_under_analesis):
     try:
         start_time=time.time()
         result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
-        print("query_a_optimized execution time: {:.2f}s".format(time.time() - start_time))
+        print("query_a2 execution time: {:.2f}s".format(time.time() - start_time))
 
         return result
     except Exception as e:
-        print(f"ERROR query_a_optimized: {e}")
+        print(f"ERROR query_a2: {e}")
         return None
     finally:
         close_neo4j_connection(driver)
 
+#day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
+def query_b1(day_under_analesis):
+    driver = get_neo4j_connection()
+    if driver is None:
+        return False
+
+    query = f"""
+            WITH date("{day_under_analesis}") AS today
+            WITH today, date.truncate('month', today ) - duration('P1M') AS first_of_previous_month
+
+            MATCH (t:Terminal)
+
+            OPTIONAL MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t)
+            WHERE 
+                tx_prev_month.tx_date_month = first_of_previous_month.month
+                AND tx_prev_month.tx_date_year = first_of_previous_month.year
+
+            with today, t, max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+
+            OPTIONAL MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
+            WHERE 
+                tx_current_month.tx_date_month = today.month
+                AND tx_current_month.tx_date_year = today.year
+
+            WITH 
+                t, 
+                tx_amount_fraud_limit,
+                COLLECT(CASE 
+                    WHEN tx_current_month.tx_amount > tx_amount_fraud_limit THEN tx_current_month 
+                    ELSE NULL 
+                END) AS fraud_txs_current_month
+
+            RETURN 
+                t, 
+                CASE 
+                    WHEN tx_amount_fraud_limit IS NULL THEN NULL
+                    ELSE fraud_txs_current_month
+                END AS fraud_txs_current_month
+            """
+
+    try:
+        start_time=time.time()
+        result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
+        print("query_b1 execution time: {:.2f}s".format(time.time() - start_time))
+
+        return result
+    except Exception as e:
+        print(f"ERROR query_b1: {e}")
+        return None
+    finally:
+        close_neo4j_connection(driver)
+
+#day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
+def query_b2(day_under_analesis):
+    driver = get_neo4j_connection()
+    if driver is None:
+        return False
+
+    query = f"""
+            WITH date("{day_under_analesis}") AS today
+            WITH today, date.truncate('month', today ) - duration('P1M') AS first_of_previous_month
+
+            MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t:Terminal)
+            WHERE 
+                tx_prev_month.tx_date_month = first_of_previous_month.month
+                AND tx_prev_month.tx_date_year = first_of_previous_month.year
+
+            with today, t, max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+
+            OPTIONAL MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
+            WHERE 
+                tx_current_month.tx_date_month = today.month
+                AND tx_current_month.tx_date_year = today.year
+
+            RETURN 
+                t,
+                COLLECT( 
+                    CASE 
+                        WHEN tx_current_month.tx_amount > tx_amount_fraud_limit THEN tx_current_month 
+                        ELSE NULL 
+                    END 
+                )AS fraud_txs_current_month
+            """
+    try:
+        start_time=time.time()
+        result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
+        print("query_b2 execution time: {:.2f}s".format(time.time() - start_time))
+
+        return result
+    except Exception as e:
+        print(f"ERROR query_b2: {e}")
+        return None
+    finally:
+        close_neo4j_connection(driver)
+
+
+def query_c(customer_id, k):
+    driver = get_neo4j_connection()
+    if driver is None:
+        return False
+
+    query = """
+            
+            """
+    try:
+        start_time=time.time()
+        result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
+        print("query_c execution time: {:.2f}s".format(time.time() - start_time))
+
+        return result
+    except Exception as e:
+        print(f"ERROR query_c: {e}")
+        return None
+    finally:
+        close_neo4j_connection(driver)
