@@ -54,9 +54,53 @@ def clear_database():
     finally:
         close_neo4j_connection(driver)
 
-def load_terminals_from_csv():
+def execute_query_command(name, query):
     driver = get_neo4j_connection()
+    try:
+        start_time=time.time()
+        driver.execute_query(query)
+        print(f"{name} execution time: {{:.2f}}s".format(time.time()-start_time))
+        return True
+    except Exception as e:
+        print(f"ERROR {name}: {e}")
+        return False
+    finally:
+        close_neo4j_connection(driver)
 
+def execute_query_commands(name, queries):
+    driver = get_neo4j_connection()
+    try:
+        start_time=time.time()
+        
+        for query in queries:
+            driver.execute_query(query)
+
+        print(f"{name} execution time: {{:.2f}}s".format(time.time()-start_time))
+        return True
+    except Exception as e:
+        print(f"ERROR {name}: {e}")
+        return False
+    finally:
+        close_neo4j_connection(driver)
+
+def execute_query_df(name, query):
+    driver = get_neo4j_connection()
+    if driver is None:
+        return False
+
+    try:
+        start_time=time.time()
+        result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
+        print(f"{name} execution time: {{:.2f}}s".format(time.time() - start_time))
+
+        return result
+    except Exception as e:
+        print(f"ERROR {name}: {e}")
+        return None
+    finally:
+        close_neo4j_connection(driver)
+
+def load_terminals_from_csv():
     query = f"""
         CALL apoc.periodic.iterate(
             'LOAD CSV WITH HEADERS FROM "{config.terminals_csv_link}" AS row FIELDTERMINATOR ";" 
@@ -69,21 +113,9 @@ def load_terminals_from_csv():
             {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
         )
     """
+    return execute_query_command("load_terminals_from_csv", query)
 
-    try:
-        start_time=time.time()
-        driver.execute_query(query)
-        print("load_terminals_from_csv execution time: {:.2f}s".format(time.time()-start_time))
-        return True
-    except Exception as e:
-        print(f"ERROR load_terminals_from_csv: {e}")
-        return False
-    finally:
-        close_neo4j_connection(driver)
-
-def load_customers_with_available_terminals_from_csv():
-    driver = get_neo4j_connection()
-    
+def load_customers_with_available_terminals_from_csv():    
     query = f"""
         CALL apoc.periodic.iterate(
             'LOAD CSV WITH HEADERS FROM "{config.customers_csv_link}" AS row FIELDTERMINATOR ";" 
@@ -104,21 +136,9 @@ def load_customers_with_available_terminals_from_csv():
             {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
         )
     """
-    
-    try:
-        start_time=time.time()
-        driver.execute_query(query)
-        print("load_customers_with_available_terminals_from_csv execution time: {:.2f}s".format(time.time()-start_time))
-        return True
-    except Exception as e:
-        print(f"ERROR load_customers_with_available_terminals_from_csv: {e}")
-        return False
-    finally:
-        close_neo4j_connection(driver)
+    return execute_query_command("load_customers_with_available_terminals_from_csv",query)
 
 def load_transactions_from_csv():
-    driver = get_neo4j_connection()
-
     query = f"""
         CALL apoc.periodic.iterate(
             'LOAD CSV WITH HEADERS FROM "{config.transactions_csv_link}" AS row FIELDTERMINATOR ";" 
@@ -143,29 +163,14 @@ def load_transactions_from_csv():
                 transaction.tx_date_day = parsed_date.day,
                 transaction.tx_date_month = parsed_date.month,
                 transaction.tx_date_year = parsed_date.year, 
-                transaction.tx_time = parsed_local_time 
+                transaction.tx_date_time = parsed_local_time 
             ',
             {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
         )
     """
-
-
-    try:
-        start_time=time.time()
-        driver.execute_query(query)
-        print("load_transactions_from_csv execution time: {:.2f}s".format(time.time()-start_time))
-        return True
-    except Exception as e:
-        print(f"ERROR load_transactions_from_csv: {e}")
-        return False
-    finally:
-        close_neo4j_connection(driver)
+    return execute_query_command("load_transactions_from_csv",query)
 
 def create_terminals_schema():
-    driver = get_neo4j_connection()
-    if driver is None:
-        return False
-
     queries = [
         "CREATE CONSTRAINT terminal_id_is_integer FOR (t:Terminal) REQUIRE t.terminal_id IS :: INTEGER;",
         "CREATE CONSTRAINT terminal_id_key FOR (t:Terminal) REQUIRE t.terminal_id IS NODE KEY;",
@@ -174,24 +179,10 @@ def create_terminals_schema():
         "CREATE CONSTRAINT terminal_y_is_float FOR (t:Terminal) REQUIRE t.y_terminal_id IS :: FLOAT;",
         "CREATE CONSTRAINT terminal_y_required FOR (t:Terminal) REQUIRE t.y_terminal_id IS NOT NULL;"
     ]
-
-    try:
-        start_time=time.time()
-        for query in queries:
-            driver.execute_query(query)
-        print("create_terminals_schema execution time: {:.2f}s".format(time.time()-start_time))
-        return True
-    except Exception as e:
-        print(f"ERROR create_constraints_and_index: {e}")
-        return False
-    finally:
-        close_neo4j_connection(driver)
+    
+    return execute_query_commands("create_terminals_schema", queries)
 
 def create_customers_schema():
-    driver = get_neo4j_connection()
-    if driver is None:
-        return False
-
     queries = [
         "CREATE CONSTRAINT customer_id_is_integer FOR (c:Customer) REQUIRE c.customer_id IS :: INTEGER;",
         "CREATE CONSTRAINT customer_id_key FOR (c:Customer) REQUIRE c.customer_id IS NODE KEY;",
@@ -206,24 +197,9 @@ def create_customers_schema():
         "CREATE CONSTRAINT customer_mean_nb_tx_per_day_is_float FOR (c:Customer) REQUIRE c.mean_nb_tx_per_day IS :: FLOAT;",
         "CREATE CONSTRAINT customer_mean_nb_tx_per_day_required FOR (c:Customer) REQUIRE c.mean_nb_tx_per_day IS NOT NULL;"
     ]
-
-    try:
-        start_time=time.time()
-        for query in queries:
-            driver.execute_query(query)
-        print("create_customers_schema execution time: {:.2f}s".format(time.time()-start_time))
-        return True
-    except Exception as e:
-        print(f"ERROR create_customers_schema: {e}")
-        return False
-    finally:
-        close_neo4j_connection(driver)
+    return execute_query_commands("create_customers_schema", queries)
 
 def create_transaction_schema():
-    driver = get_neo4j_connection()
-    if driver is None:
-        return False
-
     queries = [
         "CREATE CONSTRAINT transaction_id_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.transaction_id IS :: INTEGER;",
         "CREATE CONSTRAINT transaction_id_key FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.transaction_id IS RELATIONSHIP KEY;",
@@ -239,32 +215,17 @@ def create_transaction_schema():
         "CREATE CONSTRAINT tx_date_month_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_date_month IS NOT NULL;",
         "CREATE CONSTRAINT tx_date_year_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_date_year IS :: INTEGER;",
         "CREATE CONSTRAINT tx_date_year_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_date_year IS NOT NULL;",
-        "CREATE CONSTRAINT tx_time_is_localtime FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_time IS :: LOCAL TIME;",
-        "CREATE CONSTRAINT tx_time_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_time IS NOT NULL;",
+        "CREATE CONSTRAINT tx_date_time_is_localtime FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_date_time IS :: LOCAL TIME;",
+        "CREATE CONSTRAINT tx_date_time_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_date_time IS NOT NULL;",
         "CREATE CONSTRAINT tx_fraud_is_boolean FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_fraud IS :: BOOLEAN;",
         "CREATE CONSTRAINT tx_fraud_is_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_fraud IS NOT NULL;",
         "CREATE CONSTRAINT tx_fraud_scenario_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_fraud_scenario IS :: INTEGER;",
         "CREATE CONSTRAINT tx_fraud_scenario_is_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_fraud_scenario IS NOT NULL;"
     ]
-
-    try:
-        start_time=time.time()
-        for query in queries:
-            driver.execute_query(query)
-        print("create_transaction_schema execution time: {:.2f}s".format(time.time()-start_time))
-        return True
-    except Exception as e:
-        print(f"ERROR create_transaction_schema: {e}")
-        return False
-    finally:
-        close_neo4j_connection(driver)
+    return execute_query_commands("create_transaction_schema", queries)
 
 #day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
 def query_a1(day_under_analesis):
-    driver = get_neo4j_connection()
-    if driver is None:
-        return False
-
     query = f"""
             WITH date.truncate('month', date("{day_under_analesis}") ) - duration('P1M') AS first_of_previous_month
 
@@ -318,43 +279,14 @@ def query_a1(day_under_analesis):
                 END AS is_under_monthly_freq_avg_of_same_period
     """
 
-    try:
-        start_time=time.time()
-        result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
-        print("query_a execution time: {:.2f}s".format(time.time() - start_time))
-
-        return result
-    except Exception as e:
-        print(f"ERROR query_a: {e}")
-        return None
-    finally:
-        close_neo4j_connection(driver)
+    return execute_query_df("query_a1",query)
 
 def create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year():
-    driver = get_neo4j_connection()
-    if driver is None:
-        return False
-
     query = "CREATE INDEX composite_index_on_tx_date_year_and_month IF NOT EXISTS FOR ()-[tx:Make_transaction]-() ON (tx.tx_date_month, tx.tx_date_year)"
-
-    try:
-        start_time=time.time()
-
-        driver.execute_query(query)
-        print("create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year execution time: {:.2f}s".format(time.time()-start_time))
-        return True
-    except Exception as e:
-        print(f"ERROR create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year: {e}")
-        return False
-    finally:
-        close_neo4j_connection(driver)
+    return execute_query_command("create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year", query)
 
 #day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
 def query_a2(day_under_analesis):
-    driver = get_neo4j_connection()
-    if driver is None:
-        return False
-
     query = f"""
             WITH date.truncate('month', date("{day_under_analesis}") ) - duration('P1M') AS first_of_previous_month
 
@@ -390,25 +322,11 @@ def query_a2(day_under_analesis):
                 total_amount_prev_month < tx_prev_month_all_prev_year_total_amount_avg  AS is_under_total_amount_avg_of_same_period,
                 monthly_freq_prev_month < tx_prev_month_all_prev_year_montly_freq_avg AS is_under_monthly_freq_avg_of_same_period
             """
-
-    try:
-        start_time=time.time()
-        result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
-        print("query_a2 execution time: {:.2f}s".format(time.time() - start_time))
-
-        return result
-    except Exception as e:
-        print(f"ERROR query_a2: {e}")
-        return None
-    finally:
-        close_neo4j_connection(driver)
+    
+    return execute_query_df("query_a2",query)
 
 #day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
 def query_b1(day_under_analesis):
-    driver = get_neo4j_connection()
-    if driver is None:
-        return False
-
     query = f"""
             WITH date("{day_under_analesis}") AS today
             WITH today, date.truncate('month', today ) - duration('P1M') AS first_of_previous_month
@@ -443,24 +361,10 @@ def query_b1(day_under_analesis):
                 END AS fraud_txs_current_month
             """
 
-    try:
-        start_time=time.time()
-        result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
-        print("query_b1 execution time: {:.2f}s".format(time.time() - start_time))
-
-        return result
-    except Exception as e:
-        print(f"ERROR query_b1: {e}")
-        return None
-    finally:
-        close_neo4j_connection(driver)
+    return execute_query_df("query_b1",query)
 
 #day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
 def query_b2(day_under_analesis):
-    driver = get_neo4j_connection()
-    if driver is None:
-        return False
-
     query = f"""
             WITH date("{day_under_analesis}") AS today
             WITH today, date.truncate('month', today ) - duration('P1M') AS first_of_previous_month
@@ -486,24 +390,12 @@ def query_b2(day_under_analesis):
                     END 
                 )AS fraud_txs_current_month
             """
-    try:
-        start_time=time.time()
-        result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
-        print("query_b2 execution time: {:.2f}s".format(time.time() - start_time))
+   
+    return execute_query_df("query_b2",query)
 
-        return result
-    except Exception as e:
-        print(f"ERROR query_b2: {e}")
-        return None
-    finally:
-        close_neo4j_connection(driver)
-
-
+#customer_id is an integer that indicates the customer_id property of :Customer
+#k is an integer that indicates the different customers involved in the chain described in the project track
 def query_c(customer_id, k):
-    driver = get_neo4j_connection()
-    if driver is None:
-        return False
-
     query = f"""
             WITH {k-1} * 2 AS k
             MATCH (start:Customer {{customer_id: {customer_id}}})
@@ -518,14 +410,39 @@ def query_c(customer_id, k):
             WHERE length(path) = k
             RETURN nodes(path)[-1].customer_id AS CO_Customer
             """
-    try:
-        start_time=time.time()
-        result = driver.execute_query(query, result_transformer_= neo4j.Result.to_df)
-        print("query_c execution time: {:.2f}s".format(time.time() - start_time))
+    return execute_query_df("query_c",query)
 
-        return result
-    except Exception as e:
-        print(f"ERROR query_c: {e}")
-        return None
-    finally:
-        close_neo4j_connection(driver)
+def extend_transactions_property_keys():
+    query = f"""
+        CALL apoc.periodic.iterate(
+            'MATCH (c:Customer)-[transaction:Make_transaction]->(t:Terminal) 
+            RETURN transaction',
+            'SET transaction.tx_day_period = CASE toInteger(rand() * 4)
+                                                WHEN 0 THEN "morning" 
+                                                WHEN 1 THEN "afternoon" 
+                                                WHEN 2 THEN "evening" 
+                                                ELSE "night" 
+                                            END,
+                transaction.tx_products_type = CASE toInteger(rand() * 5) 
+                                                    WHEN 0 THEN "high-tech" 
+                                                    WHEN 1 THEN "food" 
+                                                    WHEN 2 THEN "clothing" 
+                                                    WHEN 3 THEN "consumable" 
+                                                    ELSE "other" 
+                                                END,
+                transaction.tx_security_feeling = toInteger(rand() * 5) + 1',
+            {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
+        )
+    """
+    return execute_query_command("extend_transactions_property_keys", query)
+
+def create_transaction_extended_schema():
+    queries = [
+        "CREATE CONSTRAINT tx_day_period_is_string FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_day_period IS :: STRING;",
+        "CREATE CONSTRAINT tx_day_period_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_day_period IS NOT NULL;",
+        "CREATE CONSTRAINT tx_products_type_is_string FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_products_type IS :: STRING;",
+        "CREATE CONSTRAINT tx_products_type_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_products_type IS NOT NULL;",
+        "CREATE CONSTRAINT tx_security_feeling_is_integer FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_security_feeling IS :: INTEGER;",
+        "CREATE CONSTRAINT tx_security_feeling_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_security_feeling IS NOT NULL;",
+    ]
+    return execute_query_commands("create_transaction_extended_schema", queries)

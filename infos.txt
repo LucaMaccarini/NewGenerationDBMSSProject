@@ -296,4 +296,44 @@ RETURN nodes(path)[-1].customer_id AS CO_Customer
 
 
     
-    
+    CALL apoc.trigger.add(
+  'Make_transaction_schema',
+  '
+  UNWIND $createdRelationships AS r
+  MATCH (startNode)-[r:Make_transaction]->(endNode)
+  WHERE NOT (startNode:Customer AND endNode:Terminal)
+  CALL apoc.util.validate(true, "Make_transaction relationship not valid: check relationship start or end node", [])
+  RETURN r
+  ',
+  {phase:'before'}
+)
+
+
+CALL apoc.periodic.iterate(
+    'MATCH (c:Customer)-[transaction:Make_transaction]->(t:Terminal) 
+    RETURN transaction',
+    'SET transaction.tx_day_period=1,
+         transaction.tx_products_type=1,
+         transaction.tx_security_feeling=1',
+    {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
+)
+
+CALL apoc.periodic.iterate(
+    'MATCH (c:Customer)-[transaction:Make_transaction]->(t:Terminal) 
+    RETURN transaction',
+    'SET transaction.tx_day_period = CASE rand() * 4 
+                                         WHEN 0 THEN "morning" 
+                                         WHEN 1 THEN "afternoon" 
+                                         WHEN 2 THEN "evening" 
+                                         ELSE "night" 
+                                     END,
+         transaction.tx_products_type = CASE rand() * 5 
+                                            WHEN 0 THEN "high-tech" 
+                                            WHEN 1 THEN "food" 
+                                            WHEN 2 THEN "clothing" 
+                                            WHEN 3 THEN "consumable" 
+                                            ELSE "other" 
+                                        END,
+         transaction.tx_security_feeling = toInteger(rand() * 5) + 1',
+    {batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}
+)
