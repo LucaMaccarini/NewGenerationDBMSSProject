@@ -337,3 +337,234 @@ CALL apoc.periodic.iterate(
          transaction.tx_security_feeling = toInteger(rand() * 5) + 1',
     {batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}
 )
+
+
+
+MATCH (c1:Customer)-[tx1:Make_transaction]->(t:Terminal) 
+WITH c1, t, COUNT(tx1) AS count_tx1 
+WHERE count_tx1 > 3  
+
+MATCH (c2:Customer)-[tx2:Make_transaction]->(t:Terminal) 
+WITH c1, c2, t, count_tx1, COUNT(tx2) AS count_tx2 
+WHERE count_tx2 > 3  
+
+WITH c1, c2, t, count_tx1, count_tx2 
+where c1 <> c2 
+
+return c1, c2, t, count_tx1, count_tx2 
+order by c1, c2
+
+
+cambia solo <> con <
+
+MATCH (c1:Customer)-[tx1:Make_transaction]->(t:Terminal) 
+WITH c1, t, COUNT(tx1) AS count_tx1 
+WHERE count_tx1 > 3  
+
+MATCH (c2:Customer)-[tx2:Make_transaction]->(t:Terminal) 
+WITH c1, c2, t, count_tx1, COUNT(tx2) AS count_tx2 
+WHERE count_tx2 > 3  
+
+WITH c1, c2, t, count_tx1, count_tx2 
+where c1 < c2 
+
+return c1, c2, t, count_tx1, count_tx2 
+order by c1, c2
+
+
+
+
+
+
+
+
+
+
+
+MATCH (c1:Customer)-[tx1:Make_transaction]->(t:Terminal) 
+WITH c1, t, COUNT(tx1) AS count_tx1, avg(tx1.tx_security_feeling) as avg_tx1_security_feeling
+WHERE count_tx1 > 3  
+
+MATCH (c2:Customer)-[tx2:Make_transaction]->(t:Terminal) 
+WITH c1, c2, t, avg_tx1_security_feeling, COUNT(tx2) AS count_tx2, avg(tx2.tx_security_feeling) as avg_tx2_security_feeling
+WHERE count_tx2 > 3 and c1 < c2 and (abs(avg_tx1_security_feeling - avg_tx2_security_feeling) < 1)
+
+return c1, c2
+
+
+
+
+
+
+
+match (:Customer)-[tx:Make_transaction]-(:Terminal) return tx.tx_day_period, count(*)
+
+
+WITH date("{day_under_analesis}") AS today
+WITH today, date.truncate('month', today ) - duration('P1M') AS first_of_previous_month
+
+MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t:Terminal)
+WHERE 
+    tx_prev_month.tx_date_month = first_of_previous_month.month
+    AND tx_prev_month.tx_date_year = first_of_previous_month.year
+
+with today, t, max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+
+OPTIONAL MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
+WHERE 
+    tx_current_month.tx_date_month = today.month
+    AND tx_current_month.tx_date_year = today.year
+
+RETURN 
+    t,
+    COLLECT( 
+        CASE 
+            WHEN tx_current_month.tx_amount > tx_amount_fraud_limit THEN tx_current_month 
+            ELSE NULL 
+        END 
+    )AS fraud_txs_current_month
+
+
+MATCH (:Customer)-[tx:Make_transaction]->(t:Terminal)
+WITH COLLECT(DISTINCT {year: tx.tx_date_year, month: tx.tx_date_month}) AS date_pairs
+UNWIND date_pairs AS date_pair
+MATCH (c:Customer)-[tx:Make_transaction]->(t:Terminal)
+WHERE tx.tx_date_year = date_pair.year AND tx.tx_date_month = date_pair.month
+WITH date_pair, count(tx) AS transaction_count
+RETURN date_pair.year AS year, date_pair.month AS month, transaction_count
+ORDER BY year, month
+
+
+
+
+MATCH (:Customer)-[tx:Make_transaction]->(t:Terminal) 
+WITH DISTINCT tx.tx_date_year AS year, tx.tx_date_month AS month  
+
+MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t:Terminal) 
+WHERE 
+  tx_prev_month.tx_date_year = (date({year: year, month: month, day: 1}) - duration({months: 1})).year AND 
+  tx_prev_month.tx_date_month = (date({year: year, month: month, day: 1}) - duration({months: 1})).month  
+
+RETURN tx_prev_month 
+
+
+
+MATCH (:Customer)-[tx:Make_transaction]->(t:Terminal) 
+WITH DISTINCT tx.tx_date_year AS year, tx.tx_date_month AS month  
+
+MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t:Terminal) 
+WHERE 
+  tx_prev_month.tx_date_year = (date({year: year, month: month, day: 1}) - duration({months: 1})).year AND 
+  tx_prev_month.tx_date_month = (date({year: year, month: month, day: 1}) - duration({months: 1})).month  
+
+RETURN year, month, max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+
+
+
+
+
+MATCH (:Customer)-[tx:Make_transaction]->(t:Terminal) 
+WITH DISTINCT tx.tx_date_year AS year, tx.tx_date_month AS month  
+
+MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t:Terminal) 
+WHERE 
+  tx_prev_month.tx_date_year = (date({year: year, month: month, day: 1}) - duration({months: 1})).year AND 
+  tx_prev_month.tx_date_month = (date({year: year, month: month, day: 1}) - duration({months: 1})).month  
+
+WITH year, month, max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+
+MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
+WHERE 
+    tx_current_month.tx_date_month = month
+    AND tx_current_month.tx_date_year = year
+
+RETURN 
+    year, 
+    month, 
+    count(tx_current_month), 
+    count( 
+        CASE 
+            WHEN tx_current_month.tx_amount > tx_amount_fraud_limit THEN 1 
+            ELSE NULL 
+        END 
+    )AS fraud_txs_current_month
+
+
+
+
+
+
+
+
+
+
+
+
+MATCH (:Customer)-[tx:Make_transaction]->(t:Terminal) 
+WITH DISTINCT tx.tx_date_year AS year, tx.tx_date_month AS month  
+
+MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t:Terminal) 
+WHERE 
+  tx_prev_month.tx_date_year = (date({year: year, month: month, day: 1}) - duration({months: 1})).year AND 
+  tx_prev_month.tx_date_month = (date({year: year, month: month, day: 1}) - duration({months: 1})).month  
+
+WITH year, month, max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+
+MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
+WHERE 
+    tx_current_month.tx_date_month = month
+    AND tx_current_month.tx_date_year = year
+
+WITH 
+    year, 
+    month,
+    tx_current_month.tx_day_period as day_period,
+    count(tx_current_month) as tx_count, 
+    count( 
+        CASE 
+            WHEN tx_current_month.tx_amount > tx_amount_fraud_limit THEN 1 
+            ELSE NULL 
+        END
+    )AS tx_fraud_count
+
+RETURN day_period, sum(tx_count) AS total_transactions, avg(tx_fraud_count) AS monthly_avg_fraud_transactions 
+  
+
+
+
+
+
+WITH date('2023-01' + '-01') AS startDate, 
+     date('2023-03' + '-01') AS endDate
+MATCH (:Customer)-[tx:Make_transaction]->(t:Terminal)
+WHERE 
+    (startDate IS NULL OR date({year: tx.tx_date_year, month: tx.tx_date_month}) >= startDate)
+    AND (endDate IS NULL OR date({year: tx.tx_date_year, month: tx.tx_date_month}) <= endDate)
+WITH DISTINCT tx.tx_date_year AS year, tx.tx_date_month AS month
+
+MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t:Terminal) 
+WHERE 
+  tx_prev_month.tx_date_year = (date({year: year, month: month, day: 1}) - duration({months: 1})).year AND 
+  tx_prev_month.tx_date_month = (date({year: year, month: month, day: 1}) - duration({months: 1})).month  
+
+WITH year, month, max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+
+MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
+WHERE 
+    tx_current_month.tx_date_month = month
+    AND tx_current_month.tx_date_year = year
+
+WITH 
+    year, 
+    month,
+    tx_current_month.tx_day_period as day_period,
+    count(tx_current_month) as tx_count, 
+    count( 
+        CASE 
+            WHEN tx_current_month.tx_amount > tx_amount_fraud_limit THEN 1 
+            ELSE NULL 
+        END
+    )AS tx_fraud_count
+
+RETURN day_period, sum(tx_count) AS total_transactions, avg(tx_fraud_count) AS monthly_avg_fraud_transactions 
+  

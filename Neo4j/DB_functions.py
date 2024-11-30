@@ -224,10 +224,10 @@ def create_transaction_schema():
     ]
     return execute_query_commands("create_transaction_schema", queries)
 
-#day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
-def query_a1(day_under_analesis):
+#year_and_month_under_analesis is a string that contains a year and a month in the format yyyy-MM
+def query_a1(year_and_month_under_analesis):
     query = f"""
-            WITH date.truncate('month', date("{day_under_analesis}") ) - duration('P1M') AS first_of_previous_month
+            WITH date.truncate('month', date("{year_and_month_under_analesis}" + "-01") ) - duration({{months: 1}}) AS first_of_previous_month
 
             MATCH (c:Customer)
 
@@ -285,10 +285,10 @@ def create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_t
     query = "CREATE INDEX composite_index_on_tx_date_year_and_month IF NOT EXISTS FOR ()-[tx:Make_transaction]-() ON (tx.tx_date_month, tx.tx_date_year)"
     return execute_query_command("create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year", query)
 
-#day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
-def query_a2(day_under_analesis):
+#year_and_month_under_analesis is a string that contains a year and a month in the format yyyy-MM
+def query_a2(year_and_month_under_analesis):
     query = f"""
-            WITH date.truncate('month', date("{day_under_analesis}") ) - duration('P1M') AS first_of_previous_month
+            WITH date.truncate('month', date("{year_and_month_under_analesis}" + "-01") ) - duration({{months: 1}}) AS first_of_previous_month
 
             MATCH (c)-[tx_prev_month_all_prev_year:Make_transaction]->(:Terminal)
             WHERE 
@@ -325,11 +325,11 @@ def query_a2(day_under_analesis):
     
     return execute_query_df("query_a2",query)
 
-#day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
-def query_b1(day_under_analesis):
+#year_and_month_under_analesis is a string that contains a year and a month in the format yyyy-MM
+def query_b1(year_and_month_under_analesis):
     query = f"""
-            WITH date("{day_under_analesis}") AS today
-            WITH today, date.truncate('month', today ) - duration('P1M') AS first_of_previous_month
+            WITH date("{year_and_month_under_analesis}" + "-01") AS today
+            WITH today, date.truncate('month', today ) - duration({{months: 1}}) AS first_of_previous_month
 
             MATCH (t:Terminal)
 
@@ -363,11 +363,11 @@ def query_b1(day_under_analesis):
 
     return execute_query_df("query_b1",query)
 
-#day_under_analesis is a string that contains a date in the format yyyy-MM-dd 
-def query_b2(day_under_analesis):
+#year_and_month_under_analesis is a string that contains a year and a month in the format yyyy-MM
+def query_b2(year_and_month_under_analesis):
     query = f"""
-            WITH date("{day_under_analesis}") AS today
-            WITH today, date.truncate('month', today ) - duration('P1M') AS first_of_previous_month
+            WITH date("{year_and_month_under_analesis}" + "-01") AS today
+            WITH today, date.truncate('month', today ) - duration({{months: 1}}) AS first_of_previous_month
 
             MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t:Terminal)
             WHERE 
@@ -446,3 +446,72 @@ def create_transaction_extended_schema():
         "CREATE CONSTRAINT tx_security_feeling_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_security_feeling IS NOT NULL;",
     ]
     return execute_query_commands("create_transaction_extended_schema", queries)
+
+def query_dii():
+    query = f"""
+        CALL apoc.periodic.iterate(
+            '
+                MATCH (c1:Customer)-[tx1:Make_transaction]->(t:Terminal) 
+                WITH c1, t, COUNT(tx1) AS count_tx1, avg(tx1.tx_security_feeling) as avg_tx1_security_feeling
+                WHERE count_tx1 > 3
+
+                MATCH (c2:Customer)-[tx2:Make_transaction]->(t:Terminal) 
+                WITH c1, c2, t, avg_tx1_security_feeling, COUNT(tx2) AS count_tx2, avg(tx2.tx_security_feeling) as avg_tx2_security_feeling
+                WHERE 
+                    count_tx2 > 3 AND 
+                    c1 < c2 AND 
+                    (abs(avg_tx1_security_feeling - avg_tx2_security_feeling) < 1)
+
+                RETURN c1, c2
+            ',
+            '
+                MERGE (c1)-[:buying_friends]-(c2)
+            ',
+            {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
+        )
+    """
+    return execute_query_command("query_dii",query)
+
+#startMonthYear is a string that contains an year and a month in the format yyyy-MM, it could be null to not filter the results from a starting point
+#endMonthYear is a string that contains an year and a month in the format yyyy-MM, it could be null to not filter the results from an ending point
+#the filtering is [startMonthYear, endMonthYear]
+def query_e(startMonthYear, endMonthYear):
+    query = f"""
+            WITH date("{startMonthYear}" + "-01") AS startDate, 
+                date("{endMonthYear}" + "-01") AS endDate
+            MATCH (:Customer)-[tx:Make_transaction]->(t:Terminal)
+            WHERE 
+                (startDate IS NULL OR date({{year: tx.tx_date_year, month: tx.tx_date_month}}) >= startDate)
+                AND (endDate IS NULL OR date({{year: tx.tx_date_year, month: tx.tx_date_month}}) <= endDate)
+            WITH DISTINCT tx.tx_date_year AS year, tx.tx_date_month AS month
+
+            MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t:Terminal) 
+            WHERE 
+            tx_prev_month.tx_date_year = (date({{year: year, month: month, day: 1}}) - duration({{months: 1}})).year AND 
+            tx_prev_month.tx_date_month = (date({{year: year, month: month, day: 1}}) - duration({{months: 1}})).month  
+
+            WITH year, month, max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+
+            MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
+            WHERE 
+                tx_current_month.tx_date_month = month
+                AND tx_current_month.tx_date_year = year
+
+            WITH 
+                year, 
+                month,
+                tx_current_month.tx_day_period as day_period,
+                count(tx_current_month) as tx_count, 
+                count( 
+                    CASE 
+                        WHEN tx_current_month.tx_amount > tx_amount_fraud_limit THEN 1 
+                        ELSE NULL 
+                    END
+                )AS tx_fraud_count
+
+            RETURN day_period, sum(tx_count) AS total_transactions, avg(tx_fraud_count) AS monthly_avg_fraud_transactions 
+            """
+   
+    return execute_query_df("query_e",query)
+
+
