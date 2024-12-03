@@ -1,6 +1,8 @@
 import os
 import sys
 import numpy as np
+import warnings
+warnings.filterwarnings('ignore')
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'Transaction_data_simulator_code'))
 
@@ -50,4 +52,4 @@ for db in config.DBs:
     print(f"Database data saved in: {os.path.abspath(output_dir)}/\n")
 
 
-print(f"DONE! All DBs have been created ")
+print("DONE! All DBs have been created")
