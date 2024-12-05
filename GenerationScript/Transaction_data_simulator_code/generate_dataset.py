@@ -23,7 +23,7 @@ def generate_dataset(n_customers = 10000, n_terminals = 1000000, nb_days=90, sta
     print("Time to associate terminals to customers: {:.2f}s".format(time.time()-start_time))
     
     start_time=time.time()
-    transactions_df=customer_profiles_table.groupby('CUSTOMER_ID').apply(lambda x : generate_transactions_table(x.iloc[0], nb_days=nb_days)).reset_index(drop=True)
+    transactions_df=customer_profiles_table.groupby('CUSTOMER_ID').apply(lambda x : generate_transactions_table(x.iloc[0], start_date, nb_days)).reset_index(drop=True)
     # With Pandarallel
     #transactions_df=customer_profiles_table.groupby('CUSTOMER_ID').parallel_apply(lambda x : generate_transactions_table(x.iloc[0], nb_days=nb_days)).reset_index(drop=True)
     print("Time to generate transactions: {:.2f}s".format(time.time()-start_time))
