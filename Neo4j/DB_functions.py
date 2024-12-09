@@ -2,6 +2,8 @@ import os
 import time 
 import config
 import neo4j
+import logging
+logging.getLogger("neo4j").setLevel(logging.ERROR)
 
 def get_neo4j_connection():
     try:
