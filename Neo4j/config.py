@@ -1,12 +1,7 @@
-#200MB
-#customers_csv_link =  "https://www.dropbox.com/scl/fi/j50dkw24p3qm1wawwwyp4/customers.csv?rlkey=3fxqat1h2o56gb5qz2alhl6ev&st=5ezswrii&dl=1"
-#terminals_csv_link =  "https://www.dropbox.com/scl/fi/sjlcaj1v2ot72exjvecse/terminals.csv?rlkey=8rhtyrmtpat3zj24swsrestyx&st=qzxqizge&dl=1"
-#transactions_csv_link =  "https://www.dropbox.com/scl/fi/zxj7dmprm872l8ukb4uo3/transactions.csv?rlkey=tkgodxm54rkwajtoxahoxen8q&st=7j1xawt1&dl=1"
-
-#Test
-customers_csv_link =  "https://www.dropbox.com/scl/fi/etkusr9d6rr7lrc32zxre/customers.csv?rlkey=l3pzkk66au5xuyshhhk392497&st=ue72fvro&dl=1"
-terminals_csv_link =  "https://www.dropbox.com/scl/fi/j9rbktdvvujcc3jmnovc8/terminals.csv?rlkey=jesdwacp0tmgwqzsuyycwgvb5&st=gxa7tbro&dl=1"
-transactions_csv_link =  "https://www.dropbox.com/scl/fi/nr8jg8ofwh22geyx6vsrv/transactions.csv?rlkey=ftc258g3frk4unri1icqmhdrg&st=iskbq8ci&dl=1"
+#50MB
+customers_csv_link =  "https://www.dropbox.com/scl/fi/8ctho6t1xd2hn00ht36l3/customers.csv?rlkey=rgxpnpwrfesfui6mtdz1nnedd&st=dlfsg22x&dl=1"
+terminals_csv_link =  "https://www.dropbox.com/scl/fi/3p86oc2gnoo24q4qg7czc/terminals.csv?rlkey=z13kfwu7f3uezp1pu26k7qmtk&st=pt24zewq&dl=1"
+transactions_csv_link =  "https://www.dropbox.com/scl/fi/6tygyhhen8nxfqpzlg66s/transactions.csv?rlkey=q342g524lh558p9t2c39bx1gf&st=kwgctxrj&dl=1"
 
 lines_per_commit = 1000
 parallel_loading = "true"
