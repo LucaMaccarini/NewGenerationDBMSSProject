@@ -15,14 +15,14 @@ def get_neo4j_connection():
         #Using plain strings (not recommended): This method directly includes credentials in the code, which exposes them to potential security risks.
         #In this case, to keep things as simple as possible, I will use plain text credentials since they are for a free version of Neo4j.
         #You can create it by following this link: https://neo4j.com/product/auradb
-        #uri = "neo4j+s://45d4bc57.databases.neo4j.io"
-        #user = "neo4j"
-        #password = "o8mbh0hFGILahScLJw2yTYWIwQ6z7lPhQT6m-U2W1c8"
+        uri = "neo4j+s://45d4bc57.databases.neo4j.io"
+        user = "neo4j"
+        password = "o8mbh0hFGILahScLJw2yTYWIwQ6z7lPhQT6m-U2W1c8"
 
         #local db
-        uri = "bolt://localhost:7687"
-        user = "neo4j"
-        password = "abcdefgh"
+        #uri = "bolt://localhost:7687"
+        #user = "neo4j"
+        #password = "abcdefgh"
 
         return neo4j.GraphDatabase.driver(uri, auth=(user, password))
     
