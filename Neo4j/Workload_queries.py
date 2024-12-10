@@ -16,24 +16,24 @@ print(df.head())
 
 print("\n\n==========================\n")
 print("Q_B1")
-df = pd.DataFrame(query_b1("2020-05"))
+df = pd.DataFrame(query_b1("2022-05"))
 print(df.head())
 
 
 print("\n\n==========================\n")
 print("Q_B2")
-df = pd.DataFrame(query_b2("2020-05"))
+df = pd.DataFrame(query_b2("2022-05"))
 print(df.head())
 
 print("\n\n==========================\n")
 print("Q_c")
-df = pd.DataFrame(query_c(1,15))
+df = pd.DataFrame(query_c(1,3))
 print(df.head())
 
 
 print("\n\n==========================\n")
 print("Q_e")
-df = pd.DataFrame(query_e("2020-01", "2023-05"))
+df = pd.DataFrame(query_e("2023-01", "2023-05"))
 print(df.head())
 
 

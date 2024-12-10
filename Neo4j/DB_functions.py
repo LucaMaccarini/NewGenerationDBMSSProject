@@ -15,9 +15,14 @@ def get_neo4j_connection():
         #Using plain strings (not recommended): This method directly includes credentials in the code, which exposes them to potential security risks.
         #In this case, to keep things as simple as possible, I will use plain text credentials since they are for a free version of Neo4j.
         #You can create it by following this link: https://neo4j.com/product/auradb
-        uri = "neo4j+s://45d4bc57.databases.neo4j.io"
+        #uri = "neo4j+s://45d4bc57.databases.neo4j.io"
+        #user = "neo4j"
+        #password = "o8mbh0hFGILahScLJw2yTYWIwQ6z7lPhQT6m-U2W1c8"
+
+        #local db
+        uri = "bolt://localhost:7687"
         user = "neo4j"
-        password = "o8mbh0hFGILahScLJw2yTYWIwQ6z7lPhQT6m-U2W1c8"
+        password = "abcdefgh"
 
         return neo4j.GraphDatabase.driver(uri, auth=(user, password))
     
@@ -77,6 +82,24 @@ def execute_query_command(name, query):
     finally:
         close_neo4j_connection(driver)
 
+def execute_query_command_implicit_transaction(name, query):
+    driver = get_neo4j_connection()
+    try:
+        start_time = time.time()
+        with driver.session() as session:
+            session.run(query)
+            print(f"{name} execution time: {{:.2f}}s".format(time.time() - start_time))
+            return True
+
+    except Exception as e:
+        print(f"ERROR {name}: {e}")
+        return False
+
+    finally:
+        close_neo4j_connection(driver)
+
+
+
 def execute_query_commands(name, queries):
     driver = get_neo4j_connection()
     try:
@@ -110,27 +133,28 @@ def execute_query_df(name, query):
     finally:
         close_neo4j_connection(driver)
 
+
+
+
 def load_terminals_from_csv():
     query = f"""
-        CALL apoc.periodic.iterate(
-            'LOAD CSV WITH HEADERS FROM "{config.terminals_csv_link}" AS row FIELDTERMINATOR ";" 
-            RETURN row',
-            'MERGE (t:Terminal {{terminal_id: toInteger(row.TERMINAL_ID)}})
-            ON CREATE SET 
-                t.x_terminal_id = toFloat(row.x_terminal_id),
-                t.y_terminal_id = toFloat(row.y_terminal_id)
-            ',
-            {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
-        )
+        LOAD CSV WITH HEADERS FROM "{config.terminals_csv_link}" AS row FIELDTERMINATOR ';'
+        CALL {{
+            WITH row
+            CREATE (:Terminal {{terminal_id: toInteger(row.TERMINAL_ID),
+                                x_terminal_id: toFloat(row.x_terminal_id),
+                                y_terminal_id: toFloat(row.y_terminal_id)}})
+        }} IN TRANSACTIONS OF {config.lines_per_commit} ROWS
     """
-    return execute_query_command("load_terminals_from_csv", query)
+    return execute_query_command_implicit_transaction("load_terminals_from_csv", query)
+
 
 def load_customers_with_available_terminals_from_csv():    
     query = f"""
-        CALL apoc.periodic.iterate(
-            'LOAD CSV WITH HEADERS FROM "{config.customers_csv_link}" AS row FIELDTERMINATOR ";" 
-            RETURN row',
-            'MERGE (c:Customer {{customer_id: toInteger(row.CUSTOMER_ID)}})
+        LOAD CSV WITH HEADERS FROM "{config.customers_csv_link}" AS row FIELDTERMINATOR ";" 
+        CALL {{
+            WITH row
+            MERGE (c:Customer {{customer_id: toInteger(row.CUSTOMER_ID)}})
             ON CREATE SET  
                 c.x_customer_id = toFloat(row.x_customer_id),
                 c.y_customer_id = toFloat(row.y_customer_id),
@@ -142,20 +166,20 @@ def load_customers_with_available_terminals_from_csv():
             UNWIND available_terminal_ids AS available_terminal_id
             MATCH (t:Terminal {{terminal_id: available_terminal_id}})
             MERGE (c)-[:Available]->(t)
-            ',
-            {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
-        )
+        }} IN TRANSACTIONS OF {config.lines_per_commit} ROWS
     """
-    return execute_query_command("load_customers_with_available_terminals_from_csv",query)
+
+    return execute_query_command_implicit_transaction("load_customers_with_available_terminals_from_csv",query)
 
 def load_transactions_from_csv():
     query = f"""
-        CALL apoc.periodic.iterate(
-            'LOAD CSV WITH HEADERS FROM "{config.transactions_csv_link}" AS row FIELDTERMINATOR ";" 
-            RETURN row',
-            'WITH row,
-                  split(row.TX_DATETIME, " ") AS splitted_date_time
-                  
+        LOAD CSV WITH HEADERS FROM "{config.transactions_csv_link}" AS row FIELDTERMINATOR ";" 
+        CALL{{
+            WITH row
+
+            WITH row, 
+                 split(row.TX_DATETIME, " ") AS splitted_date_time
+            
             WITH row,
                  date(splitted_date_time[0]) AS parsed_date,
                  localtime(splitted_date_time[1]) AS parsed_local_time
@@ -174,11 +198,9 @@ def load_transactions_from_csv():
                 transaction.tx_date_month = parsed_date.month,
                 transaction.tx_date_year = parsed_date.year, 
                 transaction.tx_date_time = parsed_local_time 
-            ',
-            {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
-        )
+        }} IN TRANSACTIONS OF {config.lines_per_commit} ROWS
     """
-    return execute_query_command("load_transactions_from_csv",query)
+    return execute_query_command_implicit_transaction("load_transactions_from_csv",query)
 
 def create_terminals_schema():
     queries = [
@@ -233,6 +255,15 @@ def create_transaction_schema():
         "CREATE CONSTRAINT tx_fraud_scenario_is_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_fraud_scenario IS NOT NULL;"
     ]
     return execute_query_commands("create_transaction_schema", queries)
+
+def test():
+    query = """
+           match (n)
+           return n
+    """
+
+    return execute_query_df("test",query)
+
 
 #year_and_month_under_analesis is a string that contains a year and a month in the format yyyy-MM
 def query_a1(year_and_month_under_analesis):
