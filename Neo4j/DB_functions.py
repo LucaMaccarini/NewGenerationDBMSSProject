@@ -7,9 +7,17 @@ logging.getLogger("neo4j").setLevel(logging.ERROR)
 
 def get_neo4j_connection():
     try:
-        uri = os.getenv('NEO4J_URI')
-        user = os.getenv('NEO4J_USERNAME')
-        password = os.getenv('NEO4J_PASSWORD')
+        #Using environment variables (recommended): This method securely stores credentials outside the code by using environment variables.
+        #uri = os.getenv('NEO4J_URI')
+        #user = os.getenv('NEO4J_USERNAME')
+        #password = os.getenv('NEO4J_PASSWORD')
+        
+        #Using plain strings (not recommended): This method directly includes credentials in the code, which exposes them to potential security risks.
+        #In this case, to keep things as simple as possible, I will use plain text credentials since they are for a free version of Neo4j.
+        #You can create it by following this link: https://neo4j.com/product/auradb
+        uri = "neo4j+s://45d4bc57.databases.neo4j.io"
+        user = "neo4j"
+        password = "o8mbh0hFGILahScLJw2yTYWIwQ6z7lPhQT6m-U2W1c8"
 
         return neo4j.GraphDatabase.driver(uri, auth=(user, password))
     
@@ -414,7 +422,7 @@ def query_c(customer_id, k):
             """
     return execute_query_df("query_c",query)
 
-def extend_transactions_property_keys():
+def query_di():
     query = f"""
         CALL apoc.periodic.iterate(
             'MATCH (c:Customer)-[transaction:Make_transaction]->(t:Terminal) 
@@ -436,7 +444,7 @@ def extend_transactions_property_keys():
             {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
         )
     """
-    return execute_query_command("extend_transactions_property_keys", query)
+    return execute_query_command("query_di", query)
 
 def create_transaction_extended_schema():
     queries = [

@@ -1,9 +1,9 @@
 import pandas as pd
-from DB_functions import extend_transactions_property_keys, create_transaction_extended_schema, query_dii
+from DB_functions import query_di, create_transaction_extended_schema, query_dii
 
 create_transaction_extended_schema()
 
-extend_transactions_property_keys()
+query_di()
 
 print("\n\n==========================\n")
 print("Q_Dii")
