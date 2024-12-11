@@ -5,8 +5,5 @@ create_transaction_extended_schema()
 
 query_di()
 
-print("\n\n==========================\n")
-print("Q_Dii")
-df = pd.DataFrame(query_dii())
-print(df.head())
+query_dii()
 

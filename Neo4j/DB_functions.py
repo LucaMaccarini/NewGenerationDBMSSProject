@@ -36,32 +36,29 @@ def close_neo4j_connection(driver):
 
 def clear_database():
     driver = get_neo4j_connection()
-    if driver is None:
-        return False
-
-    delete_nodes_query = f"""
+    delete_nodes_query = """
         MATCH (n)
-        CALL apoc.nodes.delete(n, {config.lines_per_commit}) YIELD value
+        CALL apoc.nodes.delete(n, $lines_per_commit) YIELD value
         RETURN value
     """
-    
+
     try:
-        start_time=time.time()
-        driver.execute_query(delete_nodes_query)
+        start_time = time.time()
+        with driver.session() as session:
+            session.run(delete_nodes_query, {"lines_per_commit": config.lines_per_commit})
 
-        constraints_result = driver.execute_query("SHOW CONSTRAINTS").records
-        for record in constraints_result:
-            drop_constraint_query = "DROP CONSTRAINT $name"
-            driver.execute_query(drop_constraint_query, {"name": record["name"]})
+            constraints_result = session.run("SHOW CONSTRAINTS")
+            for record in constraints_result:
+                drop_constraint_query = "DROP CONSTRAINT $name"
+                session.run(drop_constraint_query, {"name": record["name"]})
 
-        indexes_result = driver.execute_query("SHOW INDEXES").records
-        for record in indexes_result:
-            drop_index_query = "DROP INDEX $name"
-            driver.execute_query(drop_index_query, {"name": record["name"]})
+            indexes_result = session.run("SHOW INDEXES")
+            for record in indexes_result:
+                drop_index_query = "DROP INDEX $name"
+                session.run(drop_index_query, {"name": record["name"]})
 
-        print("clear_database execution time: {:.2f}s".format(time.time()-start_time))
-        return True
-
+            print("clear_database execution time: {:.2f}s".format(time.time() - start_time))
+            return True
     except Exception as e:
         print(f"ERROR clear_database: {e}")
         return False
@@ -69,25 +66,17 @@ def clear_database():
     finally:
         close_neo4j_connection(driver)
 
-def execute_query_command(name, query):
+def execute_query_commands(name, queries):
     driver = get_neo4j_connection()
     try:
-        start_time=time.time()
-        driver.execute_query(query)
-        print(f"{name} execution time: {{:.2f}}s".format(time.time()-start_time))
-        return True
-    except Exception as e:
-        print(f"ERROR {name}: {e}")
-        return False
-    finally:
-        close_neo4j_connection(driver)
-
-def execute_query_command_implicit_transaction(name, query):
-    driver = get_neo4j_connection()
-    try:
-        start_time = time.time()
         with driver.session() as session:
-            session.run(query)
+            start_time = time.time()
+            for query in queries:
+                try:
+                    session.run(query)
+                except Exception as e:
+                    return False
+            
             print(f"{name} execution time: {{:.2f}}s".format(time.time() - start_time))
             return True
 
@@ -95,24 +84,6 @@ def execute_query_command_implicit_transaction(name, query):
         print(f"ERROR {name}: {e}")
         return False
 
-    finally:
-        close_neo4j_connection(driver)
-
-
-
-def execute_query_commands(name, queries):
-    driver = get_neo4j_connection()
-    try:
-        start_time=time.time()
-        
-        for query in queries:
-            driver.execute_query(query)
-
-        print(f"{name} execution time: {{:.2f}}s".format(time.time()-start_time))
-        return True
-    except Exception as e:
-        print(f"ERROR {name}: {e}")
-        return False
     finally:
         close_neo4j_connection(driver)
 
@@ -133,9 +104,6 @@ def execute_query_df(name, query):
     finally:
         close_neo4j_connection(driver)
 
-
-
-
 def load_terminals_from_csv():
     query = f"""
         LOAD CSV WITH HEADERS FROM "{config.terminals_csv_link}" AS row FIELDTERMINATOR ';'
@@ -146,8 +114,7 @@ def load_terminals_from_csv():
                                 y_terminal_id: toFloat(row.y_terminal_id)}})
         }} IN TRANSACTIONS OF {config.lines_per_commit} ROWS
     """
-    return execute_query_command_implicit_transaction("load_terminals_from_csv", query)
-
+    return execute_query_commands("load_terminals_from_csv", [query])
 
 def load_customers_with_available_terminals_from_csv():    
     query = f"""
@@ -169,7 +136,7 @@ def load_customers_with_available_terminals_from_csv():
         }} IN TRANSACTIONS OF {config.lines_per_commit} ROWS
     """
 
-    return execute_query_command_implicit_transaction("load_customers_with_available_terminals_from_csv",query)
+    return execute_query_commands("load_customers_with_available_terminals_from_csv", [query])
 
 def load_transactions_from_csv():
     query = f"""
@@ -200,7 +167,7 @@ def load_transactions_from_csv():
                 transaction.tx_date_time = parsed_local_time 
         }} IN TRANSACTIONS OF {config.lines_per_commit} ROWS
     """
-    return execute_query_command_implicit_transaction("load_transactions_from_csv",query)
+    return execute_query_commands("load_transactions_from_csv", [query])
 
 def create_terminals_schema():
     queries = [
@@ -255,15 +222,6 @@ def create_transaction_schema():
         "CREATE CONSTRAINT tx_fraud_scenario_is_required FOR ()-[transaction:Make_transaction]->() REQUIRE transaction.tx_fraud_scenario IS NOT NULL;"
     ]
     return execute_query_commands("create_transaction_schema", queries)
-
-def test():
-    query = """
-           match (n)
-           return n
-    """
-
-    return execute_query_df("test",query)
-
 
 #year_and_month_under_analesis is a string that contains a year and a month in the format yyyy-MM
 def query_a1(year_and_month_under_analesis):
@@ -324,7 +282,7 @@ def query_a1(year_and_month_under_analesis):
 
 def create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year():
     query = "CREATE INDEX composite_index_on_tx_date_year_and_month IF NOT EXISTS FOR ()-[tx:Make_transaction]-() ON (tx.tx_date_month, tx.tx_date_year)"
-    return execute_query_command("create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year", query)
+    return execute_query_commands("create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year", [query])
 
 #year_and_month_under_analesis is a string that contains a year and a month in the format yyyy-MM
 def query_a2(year_and_month_under_analesis):
@@ -475,7 +433,7 @@ def query_di():
             {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
         )
     """
-    return execute_query_command("query_di", query)
+    return execute_query_commands("query_di", [query])
 
 def create_transaction_extended_schema():
     queries = [
@@ -511,7 +469,7 @@ def query_dii():
             {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
         )
     """
-    return execute_query_command("query_dii",query)
+    return execute_query_commands("query_dii",[query])
 
 #startMonthYear is a string that contains an year and a month in the format yyyy-MM, it could be null to not filter the results from a starting point
 #endMonthYear is a string that contains an year and a month in the format yyyy-MM, it could be null to not filter the results from an ending point

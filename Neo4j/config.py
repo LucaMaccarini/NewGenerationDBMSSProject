@@ -1,11 +1,11 @@
-#50MB
-customers_csv_link =  "https://www.dropbox.com/scl/fi/8ctho6t1xd2hn00ht36l3/customers.csv?rlkey=rgxpnpwrfesfui6mtdz1nnedd&st=dlfsg22x&dl=1"
-terminals_csv_link =  "https://www.dropbox.com/scl/fi/3p86oc2gnoo24q4qg7czc/terminals.csv?rlkey=z13kfwu7f3uezp1pu26k7qmtk&st=pt24zewq&dl=1"
-transactions_csv_link =  "https://www.dropbox.com/scl/fi/6tygyhhen8nxfqpzlg66s/transactions.csv?rlkey=q342g524lh558p9t2c39bx1gf&st=kwgctxrj&dl=1"
+#13MB
+customers_csv_link =  "https://www.dropbox.com/scl/fi/ofi4fd99aydhnp30i2spy/customers.csv?rlkey=iqfr9uaty48gc4toxlssqcvf1&st=h3vqznsz&dl=1"
+terminals_csv_link =  "https://www.dropbox.com/scl/fi/4tt3cyhnpj4q3y49xksrp/terminals.csv?rlkey=1881everw81e38nc0xa2n32ct&st=8eurat39&dl=1"
+transactions_csv_link =  "https://www.dropbox.com/scl/fi/we51epibb3p98syq67kcq/transactions.csv?rlkey=4bm84xkt9b7rub9rs0u7cough&st=j1xhtfsa&dl=1"
 
 #customers_csv_link =  "file:///200MB/customers.csv"
 #terminals_csv_link =  "file:///200MB/terminals.csv"
 #transactions_csv_link =  "file:///200MB/transactions.csv"
 
-lines_per_commit = 10000
+lines_per_commit = 1000
 parallel_loading = "true"

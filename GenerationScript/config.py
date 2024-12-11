@@ -1,5 +1,13 @@
 DBs = [
     {
+        "DB_name": "14MB",
+        "n_customers": 200,
+        "n_terminals": 50,
+        "n_days": 700,
+        "start_date": '2022-01-01',
+        "radius": 15
+    },
+    {
         "DB_name": "50MB",
         "n_customers": 1000,
         "n_terminals": 500,
