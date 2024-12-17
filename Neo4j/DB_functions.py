@@ -471,25 +471,30 @@ def query_dii():
     """
     return execute_query_commands("query_dii",[query])
 
-#startMonthYear is a string that contains an year and a month in the format yyyy-MM, it could be null to not filter the results from a starting point
-#endMonthYear is a string that contains an year and a month in the format yyyy-MM, it could be null to not filter the results from an ending point
+#startMonthYear is a string that contains an year and a month in the format yyyy-MM, it could be "" to not filter the results from a starting point
+#endMonthYear is a string that contains an year and a month in the format yyyy-MM, it could be "" to not filter the results from an ending point
 #the filtering is [startMonthYear, endMonthYear]
 def query_e(startMonthYear, endMonthYear):
     query = f"""
-            WITH date("{startMonthYear}" + "-01") AS startDate, 
-                date("{endMonthYear}" + "-01") AS endDate
+            WITH 
+            CASE 
+                WHEN "{startMonthYear}" = "" THEN NULL
+                ELSE date("{startMonthYear}" + "-01")
+            END AS startDate,
+            CASE 
+                WHEN "{endMonthYear}" = "" THEN NULL
+                ELSE date("{endMonthYear}" + "-01")
+            END AS endDate
+            
             MATCH (:Customer)-[tx:Make_transaction]->(t:Terminal)
             WHERE 
-                (startDate IS NULL OR date({{year: tx.tx_date_year, month: tx.tx_date_month}}) >= startDate)
-                AND (endDate IS NULL OR date({{year: tx.tx_date_year, month: tx.tx_date_month}}) <= endDate)
-            WITH DISTINCT tx.tx_date_year AS year, tx.tx_date_month AS month
+                (startDate IS NULL OR date({{year: tx.tx_date_year, month: tx.tx_date_month}}) >= startDate) AND
+                (endDate IS NULL OR date({{year: tx.tx_date_year, month: tx.tx_date_month}}) <= endDate)
 
-            MATCH (:Customer)-[tx_prev_month:Make_transaction]->(t:Terminal) 
-            WHERE 
-            tx_prev_month.tx_date_year = (date({{year: year, month: month, day: 1}}) - duration({{months: 1}})).year AND 
-            tx_prev_month.tx_date_month = (date({{year: year, month: month, day: 1}}) - duration({{months: 1}})).month  
-
-            WITH year, month, max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+            WITH (date({{year: year, month: month, day: 1}}) + duration({{months: 1}})).year AS year, 
+                 (date({{year: year, month: month, day: 1}}) + duration({{months: 1}})).month AS month, 
+                 t,
+                 max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
 
             MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
             WHERE 
@@ -499,6 +504,7 @@ def query_e(startMonthYear, endMonthYear):
             WITH 
                 year, 
                 month,
+                t,
                 tx_current_month.tx_day_period as day_period,
                 count(tx_current_month) as tx_count, 
                 count( 
