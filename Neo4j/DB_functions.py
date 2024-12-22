@@ -15,14 +15,14 @@ def get_neo4j_connection():
         #Using plain strings (not recommended): This method directly includes credentials in the code, which exposes them to potential security risks.
         #In this case, to keep things as simple as possible, I will use plain text credentials since they are for a free version of Neo4j.
         #You can create it by following this link: https://neo4j.com/product/auradb
-        uri = "neo4j+s://45d4bc57.databases.neo4j.io"
-        user = "neo4j"
-        password = "o8mbh0hFGILahScLJw2yTYWIwQ6z7lPhQT6m-U2W1c8"
+        #uri = "neo4j+s://45d4bc57.databases.neo4j.io"
+        #user = "neo4j"
+        #password = "o8mbh0hFGILahScLJw2yTYWIwQ6z7lPhQT6m-U2W1c8"
 
         #local db
-        #uri = "bolt://localhost:7687"
-        #user = "neo4j"
-        #password = "abcdefgh"
+        uri = "bolt://localhost:7687"
+        user = "neo4j"
+        password = "abcdefgh"
 
         return neo4j.GraphDatabase.driver(uri, auth=(user, password))
     
@@ -77,8 +77,8 @@ def execute_query_commands(name, queries):
                 except Exception as e:
                     return False
             
-            print(f"{name} execution time: {{:.2f}}s".format(time.time() - start_time))
-            return True
+        print(f"{name} execution time: {{:.2f}}s".format(time.time() - start_time))
+        return True
 
     except Exception as e:
         print(f"ERROR {name}: {e}")
@@ -467,6 +467,7 @@ def query_dii():
                 MERGE (c1)-[:buying_friends]-(c2)
             ',
             {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
+            
         )
     """
     return execute_query_commands("query_dii",[query])
@@ -474,7 +475,7 @@ def query_dii():
 #startMonthYear is a string that contains an year and a month in the format yyyy-MM, it could be "" to not filter the results from a starting point
 #endMonthYear is a string that contains an year and a month in the format yyyy-MM, it could be "" to not filter the results from an ending point
 #the filtering is [startMonthYear, endMonthYear]
-def query_e(startMonthYear, endMonthYear):
+def query_e1(startMonthYear, endMonthYear):
     query = f"""
             WITH 
             CASE 
@@ -488,18 +489,18 @@ def query_e(startMonthYear, endMonthYear):
             
             MATCH (:Customer)-[tx:Make_transaction]->(t:Terminal)
             WHERE 
-                (startDate IS NULL OR date({{year: tx.tx_date_year, month: tx.tx_date_month}}) >= startDate) AND
-                (endDate IS NULL OR date({{year: tx.tx_date_year, month: tx.tx_date_month}}) <= endDate)
+                 (startDate IS NULL OR (tx.tx_date_year >= startDate.year OR (tx.tx_date_year = startDate.year AND tx.tx_date_month >= startDate.month))) AND
+                 (endDate IS NULL OR (tx.tx_date_year <= endDate.year OR (tx.tx_date_year = endDate.year AND tx.tx_date_month <= endDate.month)))
 
-            WITH (date({{year: year, month: month, day: 1}}) + duration({{months: 1}})).year AS year, 
-                 (date({{year: year, month: month, day: 1}}) + duration({{months: 1}})).month AS month, 
+            WITH (date({{year: tx.tx_date_year, month: tx.tx_date_month, day: 1}}) + duration({{months: 1}})).year AS year, 
+                 (date({{year: tx.tx_date_year, month: tx.tx_date_month, day: 1}}) + duration({{months: 1}})).month AS month, 
                  t,
-                 max(tx_prev_month.tx_amount) * 1.2 as tx_amount_fraud_limit
+                 max(tx.tx_amount) * 1.2 as tx_amount_fraud_limit
 
             MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
             WHERE 
-                tx_current_month.tx_date_month = month
-                AND tx_current_month.tx_date_year = year
+                tx_current_month.tx_date_month = month AND
+                tx_current_month.tx_date_year = year
 
             WITH 
                 year, 
@@ -517,6 +518,53 @@ def query_e(startMonthYear, endMonthYear):
             RETURN day_period, sum(tx_count) AS total_transactions, avg(tx_fraud_count) AS monthly_avg_fraud_transactions 
             """
    
-    return execute_query_df("query_e",query)
+    return execute_query_df("query_e1",query)
 
+#startMonthYear is a string that contains an year and a month in the format yyyy-MM
+#endMonthYear is a string that contains an year and a month in the format yyyy-MM
+#the filtering is [startMonthYear, endMonthYear]
+def query_e2(startMonthYear, endMonthYear):
+    query = f"""
+            WITH 
+            CASE 
+                WHEN "{startMonthYear}" = "" THEN NULL
+                ELSE date("{startMonthYear}" + "-01")
+            END AS startDate,
+            CASE 
+                WHEN "{endMonthYear}" = "" THEN NULL
+                ELSE date("{endMonthYear}" + "-01")
+            END AS endDate
+            
+            MATCH (:Customer)-[tx:Make_transaction]->(t:Terminal)
+            WHERE 
+                 (tx.tx_date_year >= startDate.year OR ( tx.tx_date_year = startDate.year AND tx.tx_date_month >= startDate.month)) AND
+                 (tx.tx_date_year <= endDate.year OR ( tx.tx_date_year = endDate.year AND tx.tx_date_month <= endDate.month))
+
+            WITH (date({{year: tx.tx_date_year, month: tx.tx_date_month, day: 1}}) + duration({{months: 1}})).year AS year, 
+                 (date({{year: tx.tx_date_year, month: tx.tx_date_month, day: 1}}) + duration({{months: 1}})).month AS month, 
+                 t,
+                 max(tx.tx_amount) * 1.2 as tx_amount_fraud_limit
+
+            MATCH (:Customer)-[tx_current_month:Make_transaction]->(t)
+            WHERE 
+                tx_current_month.tx_date_month = month AND
+                tx_current_month.tx_date_year = year
+
+            WITH 
+                year, 
+                month,
+                t,
+                tx_current_month.tx_day_period as day_period,
+                count(tx_current_month) as tx_count, 
+                count( 
+                    CASE 
+                        WHEN tx_current_month.tx_amount > tx_amount_fraud_limit THEN 1 
+                        ELSE NULL 
+                    END
+                )AS tx_fraud_count
+
+            RETURN day_period, sum(tx_count) AS total_transactions, avg(tx_fraud_count) AS monthly_avg_fraud_transactions 
+            """
+   
+    return execute_query_df("query_e2",query)
 
