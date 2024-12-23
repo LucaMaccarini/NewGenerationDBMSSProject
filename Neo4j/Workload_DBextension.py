@@ -1,23 +1,28 @@
 import pandas as pd
 from DB_functions import query_di, create_transaction_extended_schema, query_dii, query_e1, query_e2
 
+print(f"query_di()")
 query_di()
+print("\n\n")
 
+print(f"create_transaction_extended_schema()")
 create_transaction_extended_schema()
+print("\n\n")
 
+print(f"query_dii()")
 query_dii()
+print("\n\n")
 
+startMonthYear = "2023-11"
+endMonthYear = "2024-02"
 
+print(f"query_e1({startMonthYear}, {endMonthYear})")
+df = pd.DataFrame(query_e1(startMonthYear, endMonthYear))
+print(df.head())
+print("\n\n")
 
-#print("\n\n==========================\n")
-#print("Q_E1")
-#df = pd.DataFrame(query_e1("2022-10", "2023-02"))
-#print(df.head())
-
-
-#print("\n\n==========================\n")
-#print("Q_E2")
-#df = pd.DataFrame(query_e2("2022-10", "2023-02"))
-#print(df.head())
-
+print(f"query_e2({startMonthYear}, {endMonthYear})")
+df = pd.DataFrame(query_e2(startMonthYear, endMonthYear))
+print(df.head())
+print("\n\n")
 

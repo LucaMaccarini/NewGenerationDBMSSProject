@@ -1,0 +1,365 @@
+50MB
+
+create_terminals_schema()
+create_terminals_schema execution time: 0.02s
+
+
+
+create_customers_schema()
+create_customers_schema execution time: 0.03s
+
+
+
+create_transaction_schema()
+create_transaction_schema execution time: 0.06s
+
+
+
+load_terminals_from_csv()
+load_terminals_from_csv execution time: 0.03s
+
+
+
+load_customers_with_available_terminals_from_csv()
+load_customers_with_available_terminals_from_csv execution time: 0.10s
+
+
+
+load_transactions_from_csv()
+load_transactions_from_csv execution time: 21.24s
+
+
+create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year()
+create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year execution time: 0.01s
+
+
+
+query_a1(2023-04)
+query_a1 execution time: 0.38s
+                                                   c is_under_total_amount_avg_of_same_period is_under_monthly_freq_avg_of_same_period
+0  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     True                                     True
+1  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     True                                     True
+2  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                    False                                    False
+3  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                    False                                     True
+4  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     True                                     True
+
+
+
+query_a2(2023-04)
+query_a2 execution time: 0.31s
+                                                   c  is_under_total_amount_avg_of_same_period  is_under_monthly_freq_avg_of_same_period
+0  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     False                                      True
+1  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                      True                                      True
+2  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     False                                     False
+3  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                      True                                      True
+4  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                      True                                      True
+
+
+
+query_b1(2023-04)
+query_b1 execution time: 0.36s
+                                             t                            fraud_txs_current_month
+0  (y_terminal_id, terminal_id, x_terminal_id)  [(transaction_id, tx_date_year, tx_time_days, ...
+1  (y_terminal_id, terminal_id, x_terminal_id)  [(transaction_id, tx_date_year, tx_time_days, ...
+2  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+3  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+4  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+
+
+
+query_b2(2023-04)
+query_b2 execution time: 0.28s
+                                             t                            fraud_txs_current_month
+0  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+1  (y_terminal_id, terminal_id, x_terminal_id)  [(transaction_id, tx_date_year, tx_time_days, ...
+2  (y_terminal_id, terminal_id, x_terminal_id)  [(transaction_id, tx_date_year, tx_time_days, ...
+3  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+4  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+
+
+
+query_c(2, 15)
+query_c execution time: 0.12s
+   CO_Customer
+0          300
+1          321
+2          348
+3          427
+4          605
+
+
+query_di()
+query_di execution time: 1.89s
+
+
+
+create_transaction_extended_schema()
+create_transaction_extended_schema execution time: 0.73s
+
+
+
+query_dii()
+query_dii execution time: 29.51s
+
+query_e1(2023-01, 2023-04)
+query_e1 execution time: 1.02s
+  day_period  total_transactions  monthly_avg_fraud_transactions
+0      night               78776                        0.246988
+1    morning               46960                        0.148316
+2  afternoon               35509                        0.113522
+3    evening               26383                        0.086320
+
+
+
+query_e2(2023-01, 2023-04)
+query_e2 execution time: 1.01s
+  day_period  total_transactions  monthly_avg_fraud_transactions
+0      night               78776                        0.246988
+1    morning               46960                        0.148316
+2  afternoon               35509                        0.113522
+3    evening               26383                        0.086320
+
+
+100MB
+
+
+create_terminals_schema()
+create_terminals_schema execution time: 0.02s
+
+
+
+create_customers_schema()
+create_customers_schema execution time: 0.03s
+
+
+
+create_transaction_schema()
+create_transaction_schema execution time: 0.03s
+
+
+
+load_terminals_from_csv()
+load_terminals_from_csv execution time: 0.02s
+
+
+
+load_customers_with_available_terminals_from_csv()
+load_customers_with_available_terminals_from_csv execution time: 0.09s
+
+
+
+load_transactions_from_csv()
+load_transactions_from_csv execution time: 41.80s
+
+
+create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year()
+create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year execution time: 0.00s
+
+
+create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year()
+create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year execution time: 0.00s
+
+
+
+query_a1(2024-02)
+query_a1 execution time: 0.65s
+                                                   c is_under_total_amount_avg_of_same_period is_under_monthly_freq_avg_of_same_period
+0  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     True                                     True
+1  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     True                                     True
+2  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                    False                                    False
+3  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     True                                     True
+4  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                    False                                    False
+
+
+
+query_a2(2024-02)
+query_a2 execution time: 2.70s
+                                                   c  is_under_total_amount_avg_of_same_period  is_under_monthly_freq_avg_of_same_period
+0  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                      True                                      True
+1  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                      True                                      True
+2  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     False                                     False
+3  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                      True                                      True
+4  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     False                                     False
+
+
+
+query_b1(2024-02)
+query_b1 execution time: 0.60s
+                                             t fraud_txs_current_month
+0  (y_terminal_id, terminal_id, x_terminal_id)                      []
+1  (y_terminal_id, terminal_id, x_terminal_id)                      []
+2  (y_terminal_id, terminal_id, x_terminal_id)                      []
+3  (y_terminal_id, terminal_id, x_terminal_id)                      []
+4  (y_terminal_id, terminal_id, x_terminal_id)                      []
+
+
+
+query_b2(2024-02)
+query_b2 execution time: 0.41s
+                                             t                            fraud_txs_current_month
+0  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+1  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+2  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+3  (y_terminal_id, terminal_id, x_terminal_id)  [(transaction_id, tx_date_year, tx_time_days, ...
+4  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+
+
+
+query_c(2, 15)
+query_c execution time: 0.22s
+   CO_Customer
+0          457
+1          595
+2         1049
+3          195
+4          502
+
+
+query_di()
+query_di execution time: 3.34s
+
+
+
+create_transaction_extended_schema()
+create_transaction_extended_schema execution time: 1.56s
+
+
+
+query_dii()
+query_dii execution time: 64.91s
+
+
+query_e1(2023-11, 2024-02)
+query_e1 execution time: 5.04s
+  day_period  total_transactions  monthly_avg_fraud_transactions
+0    evening              128632                        0.085851
+1      night              385623                        0.255747
+2    morning              229190                        0.156213
+3  afternoon              171561                        0.117021
+
+
+
+query_e2(2023-11, 2024-02)
+query_e2 execution time: 5.06s
+  day_period  total_transactions  monthly_avg_fraud_transactions
+0    evening              128632                        0.085851
+1      night              385623                        0.255747
+2    morning              229190                        0.156213
+3  afternoon              171561                        0.117021
+
+
+
+
+200MB
+
+create_transaction_schema()
+create_transaction_schema execution time: 0.04s
+
+
+
+load_terminals_from_csv()
+load_terminals_from_csv execution time: 0.03s
+
+
+
+load_customers_with_available_terminals_from_csv()
+load_customers_with_available_terminals_from_csv execution time: 0.18s
+
+
+
+load_transactions_from_csv()
+load_transactions_from_csv execution time: 71.11s
+
+
+create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year()
+create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year execution time: 0.00s
+
+
+
+query_a1(2024-05)
+query_a1 execution time: 1.13s
+                                                   c is_under_total_amount_avg_of_same_period is_under_monthly_freq_avg_of_same_period
+0  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                    False                                    False
+1  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     True                                     True
+2  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     True                                     True
+3  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                    False                                    False
+4  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     True                                     True
+
+
+
+query_a2(2024-05)
+query_a2 execution time: 0.97s
+                                                   c  is_under_total_amount_avg_of_same_period  is_under_monthly_freq_avg_of_same_period
+0  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                      True                                     False
+1  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     False                                     False
+2  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                      True                                      True
+3  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                      True                                      True
+4  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                      True                                     False
+
+
+
+query_b1(2024-05)
+query_b1 execution time: 1.18s
+                                             t fraud_txs_current_month
+0  (y_terminal_id, terminal_id, x_terminal_id)                      []
+1  (y_terminal_id, terminal_id, x_terminal_id)                      []
+2  (y_terminal_id, terminal_id, x_terminal_id)                      []
+3  (y_terminal_id, terminal_id, x_terminal_id)                      []
+4  (y_terminal_id, terminal_id, x_terminal_id)                      []
+
+
+
+query_b2(2024-05)
+query_b2 execution time: 0.76s
+                                             t                            fraud_txs_current_month
+0  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+1  (y_terminal_id, terminal_id, x_terminal_id)  [(transaction_id, tx_date_year, tx_time_days, ...
+2  (y_terminal_id, terminal_id, x_terminal_id)  [(transaction_id, tx_date_year, tx_time_days, ...
+3  (y_terminal_id, terminal_id, x_terminal_id)  [(transaction_id, tx_date_year, tx_time_days, ...
+4  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+
+
+
+query_c(2, 15)
+query_c execution time: 0.59s
+   CO_Customer
+0         1213
+1          200
+2          480
+3          779
+4         1067
+
+
+
+query_di()
+query_di execution time: 6.53s
+
+
+
+create_transaction_extended_schema()
+create_transaction_extended_schema execution time: 2.97s
+
+
+
+query_dii()
+query_dii execution time: 172.95s
+
+query_e1(2023-02, 2024-05)
+query_e1 execution time: 11.24s
+  day_period  total_transactions  monthly_avg_fraud_transactions
+0    morning              482441                        0.117007
+1      night              812704                        0.205706
+2    evening              271043                        0.065423
+3  afternoon              361268                        0.088422
+
+
+
+query_e2(2023-02, 2024-05)
+query_e2 execution time: 11.37s
+  day_period  total_transactions  monthly_avg_fraud_transactions
+0    morning              482441                        0.117007
+1      night              812704                        0.205706
+2    evening              271043                        0.065423
+3  afternoon              361268                        0.088422
+
+

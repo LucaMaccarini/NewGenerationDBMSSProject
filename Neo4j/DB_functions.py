@@ -38,14 +38,14 @@ def clear_database():
     driver = get_neo4j_connection()
     delete_nodes_query = """
         MATCH (n)
-        CALL apoc.nodes.delete(n, $lines_per_commit) YIELD value
+        CALL apoc.nodes.delete(n, $lines_per_commit_apoc) YIELD value
         RETURN value
     """
 
     try:
         start_time = time.time()
         with driver.session() as session:
-            session.run(delete_nodes_query, {"lines_per_commit": config.lines_per_commit})
+            session.run(delete_nodes_query, {"lines_per_commit_apoc": config.lines_per_commit_apoc})
 
             constraints_result = session.run("SHOW CONSTRAINTS")
             for record in constraints_result:
@@ -112,7 +112,7 @@ def load_terminals_from_csv():
             CREATE (:Terminal {{terminal_id: toInteger(row.TERMINAL_ID),
                                 x_terminal_id: toFloat(row.x_terminal_id),
                                 y_terminal_id: toFloat(row.y_terminal_id)}})
-        }} IN TRANSACTIONS OF {config.lines_per_commit} ROWS
+        }} IN TRANSACTIONS OF {config.lines_per_commit_call} ROWS
     """
     return execute_query_commands("load_terminals_from_csv", [query])
 
@@ -133,7 +133,7 @@ def load_customers_with_available_terminals_from_csv():
             UNWIND available_terminal_ids AS available_terminal_id
             MATCH (t:Terminal {{terminal_id: available_terminal_id}})
             MERGE (c)-[:Available]->(t)
-        }} IN TRANSACTIONS OF {config.lines_per_commit} ROWS
+        }} IN TRANSACTIONS OF {config.lines_per_commit_call} ROWS
     """
 
     return execute_query_commands("load_customers_with_available_terminals_from_csv", [query])
@@ -165,7 +165,7 @@ def load_transactions_from_csv():
                 transaction.tx_date_month = parsed_date.month,
                 transaction.tx_date_year = parsed_date.year, 
                 transaction.tx_date_time = parsed_local_time 
-        }} IN TRANSACTIONS OF {config.lines_per_commit} ROWS
+        }} IN TRANSACTIONS OF {config.lines_per_commit_call} ROWS
     """
     return execute_query_commands("load_transactions_from_csv", [query])
 
@@ -430,7 +430,7 @@ def query_di():
                                                     ELSE "other" 
                                                 END,
                 transaction.tx_security_feeling = toInteger(rand() * 5) + 1',
-            {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
+            {{batchSize: {config.lines_per_commit_apoc}, parallel: {config.parallel_loading}}}
         )
     """
     return execute_query_commands("query_di", [query])
@@ -466,7 +466,7 @@ def query_dii():
             '
                 MERGE (c1)-[:buying_friends]-(c2)
             ',
-            {{batchSize: {config.lines_per_commit}, parallel: {config.parallel_loading}}}
+            {{batchSize: {config.lines_per_commit_apoc}, parallel: {config.parallel_loading}}}
             
         )
     """
