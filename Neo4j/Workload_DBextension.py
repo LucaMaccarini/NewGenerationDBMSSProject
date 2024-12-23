@@ -14,7 +14,7 @@ query_dii()
 print("\n\n")
 
 startMonthYear = "2023-11"
-endMonthYear = "2024-02"
+endMonthYear = "2023-01"
 
 print(f"query_e1({startMonthYear}, {endMonthYear})")
 df = pd.DataFrame(query_e1(startMonthYear, endMonthYear))

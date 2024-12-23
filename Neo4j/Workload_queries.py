@@ -5,7 +5,7 @@ print("create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_an
 create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year()
 print("\n\n")
 
-year_and_month_under_analesis = "2024-02"
+year_and_month_under_analesis = "2023-04"
 
 print(f"query_a1({year_and_month_under_analesis})")
 df = pd.DataFrame(query_a1(year_and_month_under_analesis))
