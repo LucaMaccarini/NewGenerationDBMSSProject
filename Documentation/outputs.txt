@@ -29,8 +29,8 @@ load_transactions_from_csv()
 load_transactions_from_csv execution time: 21.24s
 
 
-create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year()
-create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year execution time: 0.01s
+create_transaction_date_index()
+create_transaction_date_index execution time: 0.00s
 
 
 
@@ -152,8 +152,8 @@ load_transactions_from_csv()
 load_transactions_from_csv execution time: 41.80s
 
 
-create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year()
-create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year execution time: 0.00s
+create_transaction_date_index()
+create_transaction_date_index execution time: 0.00s
 
 
 
@@ -248,6 +248,15 @@ query_e2 execution time: 5.06s
 
 200MB DB output of import.py, workload_queries.py and Workload_DBextension.py
 
+create_terminals_schema()
+create_terminals_schema execution time: 0.02s
+
+
+
+create_customers_schema()
+create_customers_schema execution time: 0.03s
+
+
 create_transaction_schema()
 create_transaction_schema execution time: 0.04s
 
@@ -267,8 +276,8 @@ load_transactions_from_csv()
 load_transactions_from_csv execution time: 71.11s
 
 
-create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year()
-create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year execution time: 0.00s
+create_transaction_date_index()
+create_transaction_date_index execution time: 0.00s
 
 
 

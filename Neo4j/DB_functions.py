@@ -280,9 +280,9 @@ def query_a1(year_and_month_under_analesis):
 
     return execute_query_df("query_a1",query)
 
-def create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year():
+def create_transaction_date_index():
     query = "CREATE INDEX composite_index_on_tx_date_year_and_month IF NOT EXISTS FOR ()-[tx:Make_transaction]-() ON (tx.tx_date_month, tx.tx_date_year)"
-    return execute_query_commands("create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year", [query])
+    return execute_query_commands("create_transaction_date_index", [query])
 
 #year_and_month_under_analesis is a string that contains a year and a month in the format yyyy-MM
 def query_a2(year_and_month_under_analesis):

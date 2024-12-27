@@ -1,8 +1,8 @@
-from DB_functions import query_a1, query_a2, query_b1, query_b2, query_c, query_e1, query_e2, create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year
+from DB_functions import query_a1, query_a2, query_b1, query_b2, query_c, query_e1, query_e2, create_transaction_date_index
 import pandas as pd
 
-print("create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year()")
-create_composite_index_if_not_exists_on_Make_transaction_tx_date_month_and_tx_date_year()
+print("create_transaction_date_index()")
+create_transaction_date_index()
 print("\n\n")
 
 year_and_month_under_analesis = "2023-04"
