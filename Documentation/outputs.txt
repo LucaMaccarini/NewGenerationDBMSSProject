@@ -110,16 +110,6 @@ query_e1 execution time: 1.02s
 3    evening               26383                        0.086320
 
 
-
-query_e2(2023-01, 2023-04)
-query_e2 execution time: 1.01s
-  day_period  total_transactions  monthly_avg_fraud_transactions
-0      night               78776                        0.246988
-1    morning               46960                        0.148316
-2  afternoon               35509                        0.113522
-3    evening               26383                        0.086320
-
-
 100MB DB output of import.py, workload_queries.py and Workload_DBextension.py
 
 
@@ -157,58 +147,63 @@ create_transaction_date_index execution time: 0.00s
 
 
 
-query_a1(2024-02)
-query_a1 execution time: 0.65s
-                                                   c is_under_total_amount_avg_of_same_period is_under_monthly_freq_avg_of_same_period
-0  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     True                                     True
-1  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     True                                     True
-2  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                    False                                    False
-3  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     True                                     True
-4  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                    False                                    False
+query_a1(2024-01)
+query_a1 execution time: 0.58s
+                                                   c  ... is_under_monthly_freq_avg_of_same_period
+0  (mean_amount, x_customer_id, mean_nb_tx_per_da...  ...                                     True
+1  (mean_amount, x_customer_id, mean_nb_tx_per_da...  ...                                    False
+2  (mean_amount, x_customer_id, mean_nb_tx_per_da...  ...                                    False
+3  (mean_amount, x_customer_id, mean_nb_tx_per_da...  ...                                    False
+4  (mean_amount, x_customer_id, mean_nb_tx_per_da...  ...                                    False
+
+[5 rows x 3 columns]
 
 
 
-query_a2(2024-02)
-query_a2 execution time: 2.70s
-                                                   c  is_under_total_amount_avg_of_same_period  is_under_monthly_freq_avg_of_same_period
-0  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                      True                                      True
-1  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                      True                                      True
-2  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     False                                     False
-3  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                      True                                      True
-4  (mean_amount, x_customer_id, mean_nb_tx_per_da...                                     False                                     False
+query_a2(2024-01)
+query_a2 execution time: 0.40s
+                                                   c  ...  is_under_monthly_freq_avg_of_same_period
+0  (mean_amount, x_customer_id, mean_nb_tx_per_da...  ...                                      True
+1  (mean_amount, x_customer_id, mean_nb_tx_per_da...  ...                                     False
+2  (mean_amount, x_customer_id, mean_nb_tx_per_da...  ...                                     False
+3  (mean_amount, x_customer_id, mean_nb_tx_per_da...  ...                                     False
+4  (mean_amount, x_customer_id, mean_nb_tx_per_da...  ...                                      True
+
+[5 rows x 3 columns]
 
 
 
-query_b1(2024-02)
-query_b1 execution time: 0.60s
-                                             t fraud_txs_current_month
-0  (y_terminal_id, terminal_id, x_terminal_id)                      []
-1  (y_terminal_id, terminal_id, x_terminal_id)                      []
-2  (y_terminal_id, terminal_id, x_terminal_id)                      []
-3  (y_terminal_id, terminal_id, x_terminal_id)                      []
-4  (y_terminal_id, terminal_id, x_terminal_id)                      []
-
-
-
-query_b2(2024-02)
-query_b2 execution time: 0.41s
+query_b1(2024-01)
+query_b1 execution time: 0.56s
                                              t                            fraud_txs_current_month
 0  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
-1  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+1  (y_terminal_id, terminal_id, x_terminal_id)  [(transaction_id, tx_date_year, tx_time_days, ...
 2  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+3  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+4  (y_terminal_id, terminal_id, x_terminal_id)  [(transaction_id, tx_date_year, tx_time_days, ...
+
+
+
+query_b2(2024-01)
+query_b2 execution time: 0.39s
+                                             t                            fraud_txs_current_month
+0  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
+1  (y_terminal_id, terminal_id, x_terminal_id)  [(transaction_id, tx_date_year, tx_time_days, ...
+2  (y_terminal_id, terminal_id, x_terminal_id)  [(transaction_id, tx_date_year, tx_time_days, ...
 3  (y_terminal_id, terminal_id, x_terminal_id)  [(transaction_id, tx_date_year, tx_time_days, ...
 4  (y_terminal_id, terminal_id, x_terminal_id)                                                 []
 
 
 
 query_c(2, 15)
-query_c execution time: 0.22s
+query_c execution time: 0.23s
    CO_Customer
 0          457
 1          595
 2         1049
 3          195
 4          502
+
 
 
 query_di()
@@ -225,25 +220,13 @@ query_dii()
 query_dii execution time: 64.91s
 
 
-query_e1(2023-11, 2024-02)
+query_e1(2023-10, 2024-01)
 query_e1 execution time: 5.04s
   day_period  total_transactions  monthly_avg_fraud_transactions
 0    evening              128632                        0.085851
 1      night              385623                        0.255747
 2    morning              229190                        0.156213
 3  afternoon              171561                        0.117021
-
-
-
-query_e2(2023-11, 2024-02)
-query_e2 execution time: 5.06s
-  day_period  total_transactions  monthly_avg_fraud_transactions
-0    evening              128632                        0.085851
-1      night              385623                        0.255747
-2    morning              229190                        0.156213
-3  afternoon              171561                        0.117021
-
-
 
 
 200MB DB output of import.py, workload_queries.py and Workload_DBextension.py
@@ -356,15 +339,4 @@ query_e1 execution time: 11.24s
 1      night              812704                        0.205706
 2    evening              271043                        0.065423
 3  afternoon              361268                        0.088422
-
-
-
-query_e2(2023-02, 2024-05)
-query_e2 execution time: 11.37s
-  day_period  total_transactions  monthly_avg_fraud_transactions
-0    morning              482441                        0.117007
-1      night              812704                        0.205706
-2    evening              271043                        0.065423
-3  afternoon              361268                        0.088422
-
 

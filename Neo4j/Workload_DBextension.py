@@ -13,16 +13,19 @@ print(f"query_dii()")
 query_dii()
 print("\n\n")
 
-startMonthYear = "2023-11"
-endMonthYear = "2023-01"
+
+startMonthYear = "2023-01"
+endMonthYear = "2023-04"
+
 
 print(f"query_e1({startMonthYear}, {endMonthYear})")
 df = pd.DataFrame(query_e1(startMonthYear, endMonthYear))
 print(df.head())
 print("\n\n")
 
-print(f"query_e2({startMonthYear}, {endMonthYear})")
-df = pd.DataFrame(query_e2(startMonthYear, endMonthYear))
-print(df.head())
-print("\n\n")
+
+#print(f"query_e2({startMonthYear}, {endMonthYear})")
+#df = pd.DataFrame(query_e2(startMonthYear, endMonthYear))
+#print(df.head())
+#print("\n\n")
 

@@ -5,7 +5,7 @@ print("create_transaction_date_index()")
 create_transaction_date_index()
 print("\n\n")
 
-year_and_month_under_analesis = "2023-04"
+year_and_month_under_analesis = "2024-01"
 
 print(f"query_a1({year_and_month_under_analesis})")
 df = pd.DataFrame(query_a1(year_and_month_under_analesis))

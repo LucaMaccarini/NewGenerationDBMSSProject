@@ -4,9 +4,9 @@
 #transactions_csv_link =  "https://www.dropbox.com/scl/fi/we51epibb3p98syq67kcq/transactions.csv?rlkey=4bm84xkt9b7rub9rs0u7cough&st=j1xhtfsa&dl=1"
 #lines_per_commit = 1000
 
-customers_csv_link =  "file:///200MB/customers.csv"
-terminals_csv_link =  "file:///200MB/terminals.csv"
-transactions_csv_link =  "file:///200MB/transactions.csv"
+customers_csv_link =  "file:///100MB/customers.csv"
+terminals_csv_link =  "file:///100MB/terminals.csv"
+transactions_csv_link =  "file:///100MB/transactions.csv"
 lines_per_commit_call = 100000
 lines_per_commit_apoc = 10000
 parallel_loading = "true"

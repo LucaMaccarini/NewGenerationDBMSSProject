@@ -525,21 +525,21 @@ def query_e1(startMonthYear, endMonthYear):
 #the filtering is [startMonthYear, endMonthYear]
 def query_e2(startMonthYear, endMonthYear):
     query = f"""
-            WITH 
-            CASE 
-                WHEN "{startMonthYear}" = "" THEN NULL
-                ELSE date("{startMonthYear}" + "-01")
-            END AS startDate,
-            CASE 
-                WHEN "{endMonthYear}" = "" THEN NULL
-                ELSE date("{endMonthYear}" + "-01")
-            END AS endDate
-            
+            WITH      
+                date("{startMonthYear}" + "-01") AS startDate,
+                date("{endMonthYear}" + "-01") AS endDate
             MATCH (:Customer)-[tx:Make_transaction]->(t:Terminal)
             WHERE 
-                 (tx.tx_date_year >= startDate.year OR ( tx.tx_date_year = startDate.year AND tx.tx_date_month >= startDate.month)) AND
-                 (tx.tx_date_year <= endDate.year OR ( tx.tx_date_year = endDate.year AND tx.tx_date_month <= endDate.month))
-
+                (
+                    tx.tx_date_year >= startDate.year AND tx.tx_date_month >= 1 OR
+                    tx.tx_date_year = startDate.year AND tx.tx_date_month >= startDate.month
+                )   
+                AND
+                (
+                    tx.tx_date_year <= endDate.year AND tx.tx_date_month >= 1 OR
+                    tx.tx_date_year = endDate.year AND tx.tx_date_month <= endDate.month
+                )
+               
             WITH (date({{year: tx.tx_date_year, month: tx.tx_date_month, day: 1}}) + duration({{months: 1}})).year AS year, 
                  (date({{year: tx.tx_date_year, month: tx.tx_date_month, day: 1}}) + duration({{months: 1}})).month AS month, 
                  t,
@@ -567,4 +567,3 @@ def query_e2(startMonthYear, endMonthYear):
             """
    
     return execute_query_df("query_e2",query)
-
