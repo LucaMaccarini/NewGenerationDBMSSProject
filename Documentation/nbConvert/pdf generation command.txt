@@ -1,3 +1,0 @@
-to keep think easy override the nbconvert templates with the provided ones and run the following command
-
-jupyter nbconvert --to pdf --TagRemovePreprocessor.remove_input_tags="['Image']" "New generation datamodels and DBMSS Project.ipynb"
